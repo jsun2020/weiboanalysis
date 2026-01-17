@@ -1,0 +1,151 @@
+name: Weibo Hot Analysis
+
+on:
+  # 定时执行：每天北京时间 9:00 和 18:00
+  schedule:
+    - cron: '0 1 * * *'   # UTC 01:00 = 北京时间 09:00
+    - cron: '0 10 * * *'  # UTC 10:00 = 北京时间 18:00
+
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      top_n:
+        description: '分析热搜数量'
+        required: false
+        default: 'top10'
+        type: choice
+        options:
+          - top5
+          - top10
+          - top15
+          - top20
+
+# 并发控制：同一时间只运行一个实例
+concurrency:
+  group: weibo-analysis
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. 设置 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. 安装项目依赖
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. 运行分析
+      - name: Run Weibo Hot Analysis
+        id: analyze
+        env:
+          YUNWU_API_KEY: ${{ secrets.YUNWU_API_KEY }}
+          API_BASE_URL: "https://yunwu.ai"
+          MODEL_ID: "claude-sonnet-4-5-20250929"
+          TIANAPI_KEY: ${{ secrets.TIANAPI_KEY }}
+        run: |
+          TOP_N="${{ github.event.inputs.top_n || 'top10' }}"
+          echo "Analyzing with: $TOP_N"
+          npm run analyze -- $TOP_N
+
+      # 5. 上传报告为 Artifact
+      - name: Upload Report Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: weibo-analysis-report-${{ github.run_number }}
+          path: reports/*.html
+          retention-days: 30
+
+      # 6. 提交报告到仓库（可选）
+      - name: Commit Report to Repository
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add reports/*.html
+          git diff --staged --quiet || git commit -m "Add weibo analysis report - $(date '+%Y-%m-%d %H:%M')"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 可选：部署到 GitHub Pages
+  deploy-pages:
+    needs: analyze
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main  # 拉取最新提交（包含新报告）
+
+      - name: Pull latest changes
+        run: git pull origin main
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Create index page
+        run: |
+          cd reports
+          echo '<!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>微博热搜产品创意分析报告</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; background: #f3f4f6; }
+              h1 { color: #1f2937; }
+              .report-list { list-style: none; padding: 0; }
+              .report-list li { background: white; margin: 0.5rem 0; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+              .report-list a { color: #3b82f6; text-decoration: none; font-weight: 500; }
+              .report-list a:hover { text-decoration: underline; }
+              .date { color: #6b7280; font-size: 0.875rem; }
+            </style>
+          </head>
+          <body>
+            <h1>微博热搜产品创意分析报告</h1>
+            <p>由 Anthropic SDK 自动生成</p>
+            <ul class="report-list">' > index.html
+
+          for f in $(ls -t *.html 2>/dev/null | head -20); do
+            if [ "$f" != "index.html" ]; then
+              date_str=$(echo $f | grep -oP '\d{8}-\d{6}' | sed 's/\(....\)\(..\)\(..\)-\(..\)\(..\)\(..\)/\1-\2-\3 \4:\5/')
+              echo "<li><a href=\"$f\">$f</a><span class=\"date\"> - $date_str</span></li>" >> index.html
+            fi
+          done
+
+          echo '</ul>
+          <footer style="margin-top: 2rem; color: #9ca3af; font-size: 0.875rem;">
+            <p>Powered by Anthropic SDK + GitHub Actions</p>
+          </footer>
+          </body></html>' >> index.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: reports
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
