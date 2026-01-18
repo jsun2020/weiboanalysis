@@ -176,15 +176,55 @@ ${hotListText}
     const responseText =
       response.content[0].type === "text" ? response.content[0].text : "";
 
-    // 解析JSON
-    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      console.error("无法从响应中提取JSON");
-      console.log("响应内容:", responseText.slice(0, 500));
-      throw new Error("Invalid response format");
+    console.log("收到响应，长度:", responseText.length, "字符");
+
+    // 多种方式尝试解析JSON
+    let ideas: ProductIdea[] | null = null;
+
+    // 方法1: 尝试从 ```json ... ``` 代码块中提取
+    const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      try {
+        const jsonContent = codeBlockMatch[1].trim();
+        ideas = JSON.parse(jsonContent);
+        console.log("从代码块中成功提取JSON");
+      } catch (e) {
+        console.log("代码块JSON解析失败，尝试其他方法");
+      }
     }
 
-    const ideas: ProductIdea[] = JSON.parse(jsonMatch[0]);
+    // 方法2: 尝试提取 [...] 数组
+    if (!ideas) {
+      const arrayMatch = responseText.match(/\[[\s\S]*\]/);
+      if (arrayMatch) {
+        try {
+          ideas = JSON.parse(arrayMatch[0]);
+          console.log("从数组匹配中成功提取JSON");
+        } catch (e) {
+          console.log("数组JSON解析失败，尝试其他方法");
+        }
+      }
+    }
+
+    // 方法3: 尝试直接解析整个响应
+    if (!ideas) {
+      try {
+        ideas = JSON.parse(responseText.trim());
+        console.log("直接解析响应成功");
+      } catch (e) {
+        console.log("直接解析失败");
+      }
+    }
+
+    // 如果所有方法都失败
+    if (!ideas || !Array.isArray(ideas)) {
+      console.error("无法从响应中提取JSON");
+      console.log("响应内容前1000字符:", responseText.slice(0, 1000));
+      console.log("响应内容后500字符:", responseText.slice(-500));
+      throw new Error("Invalid response format - could not extract JSON array");
+    }
+
+    console.log(`成功解析 ${ideas.length} 个产品创意`);
 
     // 添加评级
     return ideas.map((idea) => ({
