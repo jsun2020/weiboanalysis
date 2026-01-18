@@ -109,39 +109,143 @@ jobs:
       - name: Create index page
         run: |
           cd reports
-          echo '<!DOCTYPE html>
+          # 生成报告列表 JSON
+          echo "const reports = [" > reports.js
+          first=true
+          for f in $(ls -t weibo-hot-analysis-*.html 2>/dev/null | head -20); do
+            if [ "$f" != "index.html" ]; then
+              # 提取时间戳 YYYYMMDD-HHMMSS
+              ts=$(echo $f | grep -oE '[0-9]{8}-[0-9]{6}' || echo "")
+              if [ -n "$ts" ]; then
+                # 格式化为可读时间
+                date_str=$(echo $ts | sed 's/\(....\)\(..\)\(..\)-\(..\)\(..\)\(..\)/\1-\2-\3 \4:\5:\6/')
+                if [ "$first" = true ]; then
+                  first=false
+                else
+                  echo "," >> reports.js
+                fi
+                echo "  {\"file\": \"$f\", \"timestamp\": \"$ts\", \"display\": \"$date_str\"}" >> reports.js
+              fi
+            fi
+          done
+          echo "];" >> reports.js
+
+          # 生成交互式 index.html
+          cat > index.html << 'HTMLEOF'
+          <!DOCTYPE html>
           <html lang="zh-CN">
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>微博热搜产品创意分析报告</title>
             <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; background: #f3f4f6; }
-              h1 { color: #1f2937; }
-              .report-list { list-style: none; padding: 0; }
-              .report-list li { background: white; margin: 0.5rem 0; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-              .report-list a { color: #3b82f6; text-decoration: none; font-weight: 500; }
-              .report-list a:hover { text-decoration: underline; }
-              .date { color: #6b7280; font-size: 0.875rem; }
+              * { margin: 0; padding: 0; box-sizing: border-box; }
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+              .header { padding: 1.5rem 2rem; color: white; text-align: center; }
+              .header h1 { font-size: 1.75rem; margin-bottom: 1rem; }
+              .header h1::before { content: "🔥 "; }
+              .selector-container { display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap; }
+              .selector-label { font-size: 1rem; opacity: 0.9; }
+              .time-selector {
+                padding: 0.75rem 1.5rem;
+                font-size: 1rem;
+                border: none;
+                border-radius: 2rem;
+                background: rgba(255,255,255,0.2);
+                color: white;
+                cursor: pointer;
+                min-width: 220px;
+              }
+              .time-selector option { color: #1f2937; background: white; }
+              .time-selector:focus { outline: none; background: rgba(255,255,255,0.3); }
+              .refresh-btn {
+                padding: 0.75rem 1.5rem;
+                font-size: 1rem;
+                border: none;
+                border-radius: 2rem;
+                background: rgba(255,255,255,0.9);
+                color: #764ba2;
+                cursor: pointer;
+                font-weight: 500;
+              }
+              .refresh-btn:hover { background: white; }
+              .content-frame {
+                width: 100%;
+                height: calc(100vh - 140px);
+                border: none;
+                background: white;
+              }
+              .no-reports {
+                text-align: center;
+                padding: 4rem;
+                color: white;
+                font-size: 1.25rem;
+              }
+              .footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                padding: 0.5rem;
+                background: rgba(0,0,0,0.1);
+                text-align: center;
+                color: rgba(255,255,255,0.7);
+                font-size: 0.75rem;
+              }
             </style>
           </head>
           <body>
-            <h1>微博热搜产品创意分析报告</h1>
-            <p>由 Anthropic SDK 自动生成</p>
-            <ul class="report-list">' > index.html
+            <div class="header">
+              <h1>微博热搜产品创意分析报告</h1>
+              <div class="selector-container">
+                <span class="selector-label">生成时间:</span>
+                <select id="reportSelector" class="time-selector" onchange="loadReport(this.value)">
+                  <option value="">-- 加载中 --</option>
+                </select>
+                <button class="refresh-btn" onclick="refreshPage()">🔄 刷新</button>
+              </div>
+            </div>
+            <iframe id="reportFrame" class="content-frame" src="about:blank"></iframe>
+            <div class="footer">Powered by Anthropic SDK + GitHub Actions | 自动更新: 每天 09:00 & 18:00</div>
 
-          for f in $(ls -t *.html 2>/dev/null | head -20); do
-            if [ "$f" != "index.html" ]; then
-              date_str=$(echo $f | grep -oP '\d{8}-\d{6}' | sed 's/\(....\)\(..\)\(..\)-\(..\)\(..\)\(..\)/\1-\2-\3 \4:\5/')
-              echo "<li><a href=\"$f\">$f</a><span class=\"date\"> - $date_str</span></li>" >> index.html
-            fi
-          done
+            <script src="reports.js"></script>
+            <script>
+              function initSelector() {
+                const selector = document.getElementById('reportSelector');
+                selector.innerHTML = '';
+                if (typeof reports === 'undefined' || reports.length === 0) {
+                  selector.innerHTML = '<option value="">暂无报告</option>';
+                  return;
+                }
+                reports.forEach((r, i) => {
+                  const opt = document.createElement('option');
+                  opt.value = r.file;
+                  opt.textContent = r.display;
+                  if (i === 0) opt.selected = true;
+                  selector.appendChild(opt);
+                });
+                // 自动加载最新报告
+                if (reports.length > 0) {
+                  loadReport(reports[0].file);
+                }
+              }
 
-          echo '</ul>
-          <footer style="margin-top: 2rem; color: #9ca3af; font-size: 0.875rem;">
-            <p>Powered by Anthropic SDK + GitHub Actions</p>
-          </footer>
-          </body></html>' >> index.html
+              function loadReport(file) {
+                if (!file) return;
+                const frame = document.getElementById('reportFrame');
+                frame.src = file;
+              }
+
+              function refreshPage() {
+                location.reload(true);
+              }
+
+              // 初始化
+              document.addEventListener('DOMContentLoaded', initSelector);
+            </script>
+          </body>
+          </html>
+          HTMLEOF
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
