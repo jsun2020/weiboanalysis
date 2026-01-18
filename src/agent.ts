@@ -160,23 +160,49 @@ ${hotListText}
 
 请直接输出JSON数组，不要有其他文字。确保total分数等于其他5项之和。`;
 
-  try {
-    const response = await anthropic.messages.create({
-      model: MODEL_ID,
-      max_tokens: 8000,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    });
+  // 重试配置
+  const maxRetries = 3;
+  let lastError: Error | null = null;
 
-    // 提取响应文本
-    const responseText =
-      response.content[0].type === "text" ? response.content[0].text : "";
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`API 调用尝试 ${attempt}/${maxRetries}...`);
 
-    console.log("收到响应，长度:", responseText.length, "字符");
+      const response = await anthropic.messages.create({
+        model: MODEL_ID,
+        max_tokens: 8000,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      });
+
+      // 详细记录响应信息
+      console.log("API 响应状态:");
+      console.log("  - stop_reason:", response.stop_reason);
+      console.log("  - content 数组长度:", response.content?.length || 0);
+      console.log("  - usage:", JSON.stringify(response.usage));
+
+      // 验证响应内容存在
+      if (!response.content || response.content.length === 0) {
+        throw new Error(`API 返回空内容 (attempt ${attempt})`);
+      }
+
+      // 提取响应文本
+      const firstContent = response.content[0];
+      if (firstContent.type !== "text") {
+        throw new Error(`响应类型不是 text: ${firstContent.type}`);
+      }
+
+      const responseText = firstContent.text || "";
+      console.log("收到响应，长度:", responseText.length, "字符");
+
+      // 检查是否为空响应
+      if (responseText.length === 0) {
+        throw new Error(`API 返回空文本响应 (attempt ${attempt})`);
+      }
 
     // 多种方式尝试解析JSON
     let ideas: ProductIdea[] | null = null;
@@ -226,20 +252,32 @@ ${hotListText}
 
     console.log(`成功解析 ${ideas.length} 个产品创意`);
 
-    // 添加评级
-    return ideas.map((idea) => ({
-      ...idea,
-      grade:
-        idea.scores.total >= 80
-          ? "excellent"
-          : idea.scores.total >= 60
-          ? "good"
-          : "normal",
-    }));
-  } catch (error) {
-    console.error("Claude 分析失败:", error);
-    throw error;
+      // 添加评级
+      return ideas.map((idea) => ({
+        ...idea,
+        grade:
+          idea.scores.total >= 80
+            ? "excellent"
+            : idea.scores.total >= 60
+            ? "good"
+            : "normal",
+      }));
+
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`尝试 ${attempt} 失败:`, lastError.message);
+
+      if (attempt < maxRetries) {
+        const waitTime = attempt * 5000; // 递增等待时间: 5s, 10s, 15s
+        console.log(`等待 ${waitTime / 1000} 秒后重试...`);
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+      }
+    }
   }
+
+  // 所有重试都失败
+  console.error("Claude 分析失败: 所有重试都失败");
+  throw lastError || new Error("Unknown error after all retries");
 }
 
 // 生成HTML报告
