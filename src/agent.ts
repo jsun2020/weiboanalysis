@@ -381,6 +381,8 @@ function generateHTML(ideas: ProductIdea[]): string {
             color: var(--text-primary);
             line-height: 1.6;
         }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
         header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -574,6 +576,12 @@ function generateHTML(ideas: ProductIdea[]): string {
         <p>由 Claude (${MODEL_ID}) + GitHub Actions 自动生成</p>
         <p>数据来源: 微博热搜榜单 (天行数据API)</p>
     </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
 </body>
 </html>`;
 }
