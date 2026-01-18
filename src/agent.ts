@@ -43,7 +43,7 @@ const anthropic = new Anthropic({
 
 // 生成时间戳
 const now = new Date();
-const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0, 15);
+const timestamp = now.toISOString().replace(/[-:T]/g, "").slice(0, 14);
 const reportDate = now.toLocaleString("zh-CN", {
   timeZone: "Asia/Shanghai",
   year: "numeric",
