@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/02/19 11:34</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">9</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">1</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 韩媒赛前嘲讽中国队0金被打脸</span>
+                <span class="score-badge">85分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「打脸预言家」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>亚冬会赛前韩国媒体发文嘲讽中国代表团，预测将颗粒无收、0金收场</li><li>中国队在赛场上发挥出色，成功夺金，让赛前嘲讽言论迅速失效</li><li>相关截图与反差对比内容在中国社交媒体迅速发酵，#打脸#成为高热话题</li><li>事件引发中国网民的广泛共鸣，进一步强化体育民族自豪感与对外媒偏见的批判情绪</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>体育赛事AI预测与舆论追踪平台，用户可记录赛前各方媒体的预测言论，赛后系统自动对比结果并生成'打脸指数'排行榜，支持分享传播。内置多语言舆情爬虫，实时抓取各国体育媒体的预测内容，让嘲讽与被嘲讽一目了然。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁体育迷，尤其是关注国际赛事的年轻用户；热衷于反转爽感内容的社交媒体活跃人群；有强烈民族荣誉感的爱国体育观众</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>85/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 00后新兵有啥心愿</span>
+                <span class="score-badge">84分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「兵心愿盒」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>官方媒体走进军营采访00后新兵群体，引发公众对新生代军人的强烈好奇</li><li>新兵们朴素而真实的心愿内容在网络上引起广泛共鸣与感动，形成话题热潮</li><li>网友纷纷留言表达对军人群体的敬意与想要回馈的心情，互动热度持续攀升</li><li>事件折射出00后年轻人参军报国同时保有个性与情感的时代新风貌</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>专为军人群体设计的心愿众筹与情感连接平台，新兵可匿名发布心愿（如：希望父母身体健康、想看一场演唱会、想给女友买礼物），普通用户可认领心愿并以文字、视频、实物等形式完成，建立军民情感纽带，已完成心愿生成暖心故事卡。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-25岁在役00后士兵及其家属；热心公益、有军人情怀的普通市民；品牌公益营销合作方；关注当代青年军旅生活的媒体从业者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>84/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 今年调休变少了</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「假期自由度」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>2025年国家假期调整方案公布，网友发现调休天数相比往年有所减少</li><li>打工人群体对连续补班现象的长期积怨在此次政策调整中找到宣泄口，集体热议</li><li>部分网友计算发现实际'净假期'增加，但另一部分则认为调休体验更差，争议持续</li><li>话题折射出当代职场人对时间自主权与工作节奏掌控感的深层诉求</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>智能假期规划与调休管理工具，自动导入全年法定节假日及调休方案，可视化展示'真实连休天数'与'补班代价'，内置最优出行/居家方案推荐。核心亮点是'弹性假期模拟器'：输入个人年假天数，AI为你设计最优组合方案，最大化体验长假效果。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>22-40岁职场打工人，尤其是对调休制度感到疲惫的城市白领；HR从业者；有出行计划需求的家庭用户；对工作生活平衡有强烈诉求的年轻一代</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>18/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 苏翊鸣甜蜜回复朱易</span>
+                <span class="score-badge">84分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「冰雪情书」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>花样滑冰运动员朱易在社交媒体发文，苏翊鸣以温柔甜蜜的方式公开回复引发全网关注</li><li>两位冬奥明星的互动内容迅速冲上热搜，CP粉丝狂喜，相关话题阅读量暴涨</li><li>网友纷纷截图分析回复细节，'苏翊鸣好甜''顶级运动员也会撒糖'等话题衍生发酵</li><li>事件带动冰雪运动话题热度，进一步扩大两位运动员在年轻群体中的国民好感度</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>以冰雪运动场景为主题的甜蜜互动社交应用，用户可创建专属'运动员人设'角色，向心仪的人发送以滑雪、花样滑冰等项目为主题的专属情书模板，系统根据双方互动生成'默契值'与专属CP故事线，配套AR滤镜可生成冬奥风格二人合影。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>16-28岁热爱冬奥、追星苏翊鸣/朱易的年轻女性用户；有表白需求但缺乏创意的情侣或暗恋者；冰雪运动爱好者；节日营销目标用户（情人节、元旦等）</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>21/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>84/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 初三一定记得睡懒觉</span>
+                <span class="score-badge">84分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「懒觉免罪符」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>正月初三是传统民俗中'赤狗日'，有不宜外出拜年、适合在家休息的说法</li><li>网友将此民俗与现代年轻人热衷睡懒觉的生活方式创意结合，发起趣味话题</li><li>内容迅速引发共鸣，大量网友转发'找到借口睡懒觉'相关内容，形成集体狂欢</li><li>话题折射出年轻一代将传统文化与现代生活方式幽默融合的网络表达新趋势</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>节日仪式感闹钟应用，专为春节等传统节日定制'合理懒觉'方案。系统根据民俗文化自动生成节日睡眠建议（如'初三不宜早起'），并提供一键生成'懒觉正当性说明书'，可发给催起床的长辈；内置白噪音、节日氛围音效，把睡懒觉变成有仪式感的文化行为。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁被长辈催起床的年轻人；过年期间需要'正当偷懒'的社恐人士；热爱整活和传播有趣内容的社交达人；对传统习俗有好奇心的年轻用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 50%"></div></div>
+                        <span>5/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>84/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 过年剩下的红包不要扔</span>
+                <span class="score-badge">82分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「红包再生记」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>春节过后大量精美实体红包被随手丢弃，引发有环保意识的网友关注与讨论</li><li>有人晒出用红包制作的手工艺品，精美成品迅速吸引大批网友点赞转发</li><li>话题延伸至对红包设计的欣赏与对传统年俗物件的情怀讨论，内容持续发酵</li><li>事件反映出当代用户在追求环保低碳的同时对传统年俗文化的温度保留意识</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>红包创意改造与二手交易平台，用户可上传家中剩余实体红包照片，AI识别设计风格后推荐10种以上DIY再利用方案（折纸、相框、书签、拼贴画等），并附步骤教程视频。同时提供'红包盲盒交换'功能，用户可将特色红包邮寄交换，挖掘稀有或复古红包的收藏价值。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-40岁有环保意识、热爱手工DIY的用户；有孩子的家庭（亲子手工场景）；复古文化爱好者与设计师；春节后寻找有趣内容的闲置资源利用爱好者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>82/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 桃黑黑 大白菜</span>
+                <span class="score-badge">83分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「萌宠颜色命名器」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>网络上流传出以食物/植物命名宠物外貌特征的趣味梗，'桃黑黑''大白菜'等名字因形象贴切迅速出圈</li><li>大量宠物博主跟风参与，晒出自家宠物的'外貌命名'内容，形成UGC内容浪潮</li><li>话题从宠物圈扩散至泛娱乐圈层，非养宠用户也被有趣内容吸引参与互动</li><li>事件展现出互联网用户对萌宠内容的强烈消费欲与对'接地气幽默'命名文化的热爱</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>AI宠物外貌特征提取与创意命名工具，用户上传宠物照片，系统自动分析毛色、体型、表情等特征，结合蔬果、食物、自然元素等趣味语义库，为宠物生成专属'外貌梗名'（如大白菜、桃黑黑、奶油泡芙），并生成配套宠物身份证卡片，支持一键分享至各大平台。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁宠物主人，尤其是有猫狗的年轻用户；热衷于宠物社交内容创作的博主；朋友圈活跃、喜欢整活分享的都市青年；宠物用品品牌的营销合作潜力用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>83/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 苏翊鸣中日美关系最好的一集</span>
+                <span class="score-badge">84分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「运动外交官」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>亚冬会或相关赛事中，中国选手苏翊鸣与日本、美国运动员展现出超越竞技的友好互动</li><li>网友感叹运动员之间突破政治隔阂的纯粹友谊，用'中日美关系最好的一集'加以调侃赞美</li><li>话题迅速引发广泛共鸣，折射出普通民众对国家关系缓和与民间友好的朴素期待</li><li>事件成为体育外交软实力的生动案例，引发媒体与学界对运动员外交价值的深度讨论</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>体育跨国友好关系可视化平台，用户可提交运动员之间跨越国界的友谊、互助、竞技精神故事，系统构建'运动员外交关系图谱'，展示赛场内外国际运动员的真实温情互动。内置'友谊指数'算法与国家间体育交流热力地图，打造以体育为纽带的国际关系科普入口。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-30岁体育爱好者与国际关系感兴趣的年轻人；冬奥/综合性赛事粉丝；关注中日美关系但不懂政治术语的普通用户；新闻传播与国际关系专业学生</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>84/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 林孝埈已为中国短道燃尽所有</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「燃尽时刻」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>韩籍归化运动员林孝埈代表中国出战，凭借顽强表现为中国短道速滑做出重要贡献</li><li>赛后相关报道揭露其为备战付出的巨大身体代价与情感牺牲，引发公众强烈感动</li><li>网友自发整理其代表中国参赛以来的高光与艰辛时刻，形成大量情感类内容传播</li><li>话题引发对归化运动员群体认同感、牺牲精神与两国文化融合的深度社会讨论</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>运动员职业生涯感恩记录与贡献可视化平台，聚焦归化运动员与为异国效力球员的故事，通过数据可视化呈现其参赛场次、夺牌贡献、伤病历程与情感时刻，让用户以交互时间线方式深度了解运动员背后的牺牲。支持粉丝留言致谢，汇集成'致敬信'实体出版。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-40岁短道速滑及冬奥运动关注者；有移民、归化身份认同感兴趣的人群；体育情感内容的深度消费者；愿意为运动员应援的粉丝群体与公益组织</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 尹锡悦今天或被判死刑</span>
+                <span class="score-badge">78分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「政局雷达」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>2024年12月韩国总统尹锡悦突然宣布戒严令，随后遭国会否决并被弹劾停职</li><li>检察机关以内乱罪对其展开调查并实施逮捕，韩国宪政危机持续发酵</li><li>宪法法院审理弹劾案，宣判时间成为全球关注焦点，死刑量刑讨论引发广泛关注</li><li>事件走向对韩国政治生态、韩美韩中关系以及东北亚地区局势产生深远影响</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>国际政治事件实时追踪与智能解读APP，聚合全球主流媒体报道，AI自动生成事件时间线、关键人物关系图谱、法律背景科普，并提供'事件走向预测'功能，让普通用户快速看懂复杂政治局势，配备每日简报推送。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-45岁有一定教育背景的国际新闻爱好者；大学生及研究生群体；关注韩国娱乐文化进而对韩国政治产生兴趣的年轻人；金融投资者（地缘政治影响市场）</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 64%"></div></div>
+                        <span>16/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>78/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
