@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/03/01 18:12</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">6</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">4</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 伊朗袭击27个美军基地</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「地缘风云图」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>伊朗发动大规模军事反击，针对27个美军基地</li><li>事件源于地区长期紧张局势和前期冲突升级</li><li>引发全球对中东局势和国际安全的广泛关注</li><li>可能影响国际油价、金融市场和地缘政治格局</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>实时追踪全球地缘政治冲突动态的可视化地图应用，通过AR技术呈现冲突区域、军事基地分布、事件时间线，并提供多维度数据分析和专家解读，帮助用户理解复杂国际局势。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-45岁关注国际新闻的知识分子、媒体从业者、国际关系学者、投资分析师</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 64%"></div></div>
+                        <span>16/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 中国男篮vs中国台北男篮</span>
+                <span class="score-badge">82分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「篮球热血战」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>两岸篮球队进行重要赛事对抗</li><li>比赛具有特殊的情感意义和关注度</li><li>吸引大量球迷和媒体关注</li><li>成为体育话题和民族情感的交汇点</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>结合实时比赛数据和AI预测的互动观赛应用，提供多视角直播、球员数据对比、战术分析、实时弹幕互动和虚拟竞猜功能，让用户在观看比赛时获得沉浸式体验和社交乐趣。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-40岁篮球爱好者、体育竞技粉丝、喜欢社交互动的年轻群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>82/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 伊朗确认继任者后或将扩大反击</span>
+                <span class="score-badge">83分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「局势推演器」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>伊朗领导层出现重大变动，新继任者确认</li><li>继任者可能采取更强硬的外交和军事政策</li><li>国际社会密切关注伊朗下一步动向</li><li>局势不确定性增加，可能引发连锁反应</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>基于AI的地缘政治沙盘推演工具，用户可以设定不同变量（如领导人更替、军事行动等），系统通过历史数据和算法模拟未来可能的局势发展路径，以游戏化方式理解复杂国际关系。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-40岁对国际政治感兴趣的年轻人、策略游戏爱好者、政治学学生</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>83/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 沈腾马丽 我欲成冰再也无退路</span>
+                <span class="score-badge">86分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「经典台词造梗机」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>沈腾马丽新作品或宣传活动中的经典台词</li><li>台词因其戏剧性和情感张力引发共鸣</li><li>网友开始二次创作和梗图传播</li><li>成为新一代流行文化符号和表达方式</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>影视经典台词二次创作平台，用户可上传台词截图或文本，AI自动生成多种改编版本、表情包、短视频素材，支持语音模仿和场景重现，让经典台词在新语境下焕发生命力。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁喜剧爱好者、社交媒体活跃用户、内容创作者、沈腾马丽粉丝</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>21/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>86/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 六点半下班和七点半下班的差别</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「下班一小时」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>职场综艺或社交话题引发下班时间讨论</li><li>一小时差异对生活质量影响被放大关注</li><li>引发对加班文化和工作效率的反思</li><li>打工人对时间自由的渴望被集中表达</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>通勤时间优化和生活质量提升应用，对比不同下班时间的通勤拥挤度、运动健身时间、社交机会、自我提升空间等，提供个性化建议和时间管理方案，帮助用户最大化利用下班后的黄金时段。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>22-40岁上班族、通勤时间较长的职场人、追求工作生活平衡的年轻白领</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 小镇唯一外卖员靠跑单月入过万</span>
+                <span class="score-badge">82分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「小镇经济通」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>小镇外卖员因市场独占性获得可观收入</li><li>反映下沉市场服务业发展不均衡现状</li><li>展示小镇经济中的商业机会和生存智慧</li><li>引发对小镇就业和创业可能性的关注</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>下沉市场商业机会发掘平台，分析小城镇、县城的空白服务领域和需求缺口，提供创业指导、成本测算、客群分析工具，帮助有意愿的个体户在小镇找到低竞争高收益的商业机会。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-45岁返乡创业者、小镇青年、寻求副业的基层工作者、灵活就业人群</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>82/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 全国政协会议议程来了</span>
+                <span class="score-badge">74分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「议程通」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>全国政协会议即将召开，正式议程公布</li><li>会议将讨论国家重大政策和民生议题</li><li>公众期待了解会议内容与自身利益的关联</li><li>议程信息需要专业解读和普及化传播</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>政治会议议程智能解读平台，用信息图表、短视频、语音播报等形式将复杂的政协会议议程转化为易懂内容，提供关键词检索、个性化议题订阅、与生活关联度分析等功能。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-55岁关注国家政策的公民、企业管理者、公务员、教育工作者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>15/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>74/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 哈梅内伊遇害</span>
+                <span class="score-badge">78分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「真相验证器」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>关于伊朗最高领袖的重大敏感信息出现</li><li>信息真实性存疑，需要权威证实</li><li>虚假信息可能造成恐慌和市场波动</li><li>公众急需可靠的信息验证渠道</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>重大新闻事件实时验证平台，聚合全球权威媒体报道、官方声明、专家分析，通过AI识别假新闻和谣言，为用户提供可信度评分、信息源追溯和事实核查服务，防止虚假信息传播。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-50岁关注时事的理性用户、媒体从业者、需要准确信息的专业人士</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 48%"></div></div>
+                        <span>12/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>78/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 寿星千万种海底捞都宠</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「生日特权地图」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>海底捞等餐饮品牌推出生日优惠吸引顾客</li><li>生日营销成为餐饮业常见获客手段</li><li>消费者对生日福利的认知和期待提升</li><li>信息分散导致用户无法充分享受权益</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>聚合全国各品牌生日优惠的一站式平台，用户输入生日后自动推送当月可享受的免费餐饮、折扣、礼品等福利，支持导航、预约和社交分享，帮助用户最大化利用生日特权。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-40岁追求性价比的年轻消费者、美食爱好者、薅羊毛达人</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>18/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 将门独后王鹤棣路透</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「剧透雷达」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>古装剧《将门独后》拍摄期间路透照片曝光</li><li>王鹤棣造型引发粉丝讨论和期待</li><li>路透内容在社交媒体广泛传播</li><li>部分观众希望避免剧透保持观剧新鲜感</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>影视剧路透图片智能管理工具，用户可设置想追的剧集，系统自动过滤或提示相关路透内容，支持模糊化处理、剧透等级标注、追剧日历同步，让用户自主控制剧透风险，享受追剧乐趣。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁影视剧粉丝、追星族、害怕剧透又好奇的矛盾体质用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
