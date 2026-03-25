@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/03/25 11:35</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">4</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">6</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 白日提灯OST官宣</span>
+                <span class="score-badge">85分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「剧集声纹时光机」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>《白日提灯》剧集热播引发观众对配乐的高度关注</li><li>官方宣布OST阵容激发粉丝期待和讨论热潮</li><li>影视原声音乐成为年轻人情感共鸣的重要载体</li><li>剧集营销向音乐IP延伸形成多元变现模式</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>影视剧配乐发现与情绪标签平台。用户听到喜欢的剧集BGM时，APP自动识别并生成专属歌单，关联剧情片段和情绪场景。支持OST预告订阅、歌手互动、UGC二创音乐分享，打造影视音乐社区生态。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁影视剧爱好者、音乐发烧友、短视频创作者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>85/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 避谶</span>
+                <span class="score-badge">85分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「谶语解谜社交APP」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>传统文化概念在社交媒体上引发讨论和好奇</li><li>年轻人对冷门文化知识产生探索兴趣</li><li>避谶话题关联历史典故激发文化学习热情</li><li>国风游戏和文化产品市场持续升温</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>将传统文化中的谶语、预言概念游戏化。用户可创建隐喻式谜题、发布含蓄预测，其他用户通过线索解谜。结合古籍知识库、文字游戏、社交挑战，让用户在趣味互动中了解避谶文化和中国传统智慧。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-30岁国风文化爱好者、文字游戏玩家、传统文化学习者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 50%"></div></div>
+                        <span>5/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>85/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 旧手机回收价暴涨五六倍</span>
+                <span class="score-badge">81分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「手机保值指数预测器」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>旧手机回收市场出现价格异常波动现象</li><li>稀有金属价格上涨推动电子产品回收价值</li><li>消费者对手机资产管理意识觉醒</li><li>循环经济和绿色消费理念推动二手市场繁荣</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>基于市场数据预测手机贬值曲线和最佳换机时机。输入手机型号后显示当前回收价、未来6个月价格走势、保值率排行。提供多平台回收价比价、以旧换新优惠聚合、二手交易撮合服务，帮助用户最大化手机资产价值。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-40岁数码产品消费者、频繁换机用户、价格敏感型学生群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 68%"></div></div>
+                        <span>17/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>81/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 美国与伊朗和谈方案曝光</span>
+                <span class="score-badge">83分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「国际局势沙盘推演」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>美伊关系重大进展成为国际焦点新闻</li><li>和谈方案细节曝光引发全球舆论解读</li><li>公众对复杂国际关系的理解需求上升</li><li>严肃游戏和知识付费市场持续增长</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>互动式地缘政治学习工具。用游戏化方式模拟国际谈判、冲突推演、联盟构建。基于真实新闻事件生成决策场景，用户扮演不同国家角色，体验外交博弈过程。AI评估决策后果，附专家解读和历史案例对比，寓教于乐提升国际视野。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>国际关系专业学生、时事关注者、策略游戏爱好者、教育工作者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 83.33333333333334%"></div></div>
+                        <span>25/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>83/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 嘴唇发紫 心脏不好</span>
+                <span class="score-badge">76分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「唇色健康预警镜」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>健康科普话题引发公众对唇色与心脏健康关系的关注</li><li>用户开始自查嘴唇颜色寻求健康诊断信息</li><li>医学专家普及紫绀症状与心肺功能的关联知识</li><li>居家健康监测需求上升，可穿戴设备市场扩大</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>通过手机摄像头AI识别嘴唇颜色变化，实时监测心肺健康状况。集成色谱分析算法，识别紫绀、苍白等异常唇色，结合心率传感器数据，提供心脏健康评分和就医建议，支持家庭成员健康数据共享。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>35-65岁中老年人群、心血管疾病高危人群、关注家人健康的子女用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>15/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>76/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 这就是中国AI产业链的硬核实力</span>
+                <span class="score-badge">76分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「AI产业链全景图谱」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>国产AI技术在国际竞争中展现显著进步</li><li>媒体集中报道中国AI产业链完整性和自主可控能力</li><li>公众民族自豪感与科技关注度同步提升</li><li>产业界对AI生态协同发展的需求增强</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>可视化展示中国AI产业上下游企业网络，实时更新技术突破、融资动态、专利地图。提供产业链薄弱环节分析、投资机会洞察、技术趋势预测，支持企业用户进行供应链对接和合作伙伴发现。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>科技行业从业者、投资机构分析师、政策研究人员、高校科研团队</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 64%"></div></div>
+                        <span>16/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>76/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 恋与深空</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「虚拟恋人星际漂流」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>恋爱模拟游戏持续占据年轻女性娱乐消费市场</li><li>《恋与深空》等头部产品引发玩家深度情感投入</li><li>虚拟恋人陪伴需求在社交孤独时代愈发强烈</li><li>游戏IP衍生品和增值服务市场空间巨大</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>沉浸式AI恋爱养成游戏扩展工具。基于《恋与深空》IP打造立体互动体验，提供角色语音通话、AR合影、专属剧情定制、虚拟约会场景。结合LBS技术实现现实地标打卡解锁隐藏剧情，构建线上线下联动的情感陪伴生态。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-28岁女性游戏玩家、乙女游戏核心用户、二次元文化爱好者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>18/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 朱伟知道张雪峰去世后哭了</span>
+                <span class="score-badge">66分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「情感记忆胶囊」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>公众人物因他人去世表达悲痛引发情感共鸣</li><li>生死议题触动人们对珍惜当下的反思</li><li>数字时代人们寻求新的哀悼和纪念方式</li><li>心理健康服务和情感科技产品需求增长</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>帮助用户记录和缅怀重要关系的数字纪念平台。支持上传与逝者的聊天记录、照片、语音，AI生成情感时间轴和关系图谱。提供私密悼念空间、群体追思会、心理疏导资源，用科技方式保存珍贵记忆，帮助用户完成哀伤疗愈。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>经历亲友离世的各年龄段用户、心理咨询师、殡葬服务机构</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 40%"></div></div>
+                        <span>10/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>66/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 以纯品牌代言人范丞丞</span>
+                <span class="score-badge">76分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「明星带货透明度仪表盘」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>国民品牌以纯宣布新生代偶像代言人</li><li>粉丝经济与品牌营销深度绑定成为常态</li><li>企业对明星代言效果量化评估需求提升</li><li>娱乐营销数据化、透明化趋势明显</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>品牌代言效果实时监测工具。追踪明星代言后品牌搜索量、销售转化、社交声量变化，提供ROI可视化分析。对比不同明星代言效果，预测粉丝购买力，帮助品牌方科学选择代言人，粉丝也可查看偶像商业价值排行。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>品牌市场部决策者、MCN机构、明星经纪团队、粉丝群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>21/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>76/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 郑州大学校友会悼念张雪峰</span>
+                <span class="score-badge">64分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「校友永续连接网络」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>知名校友去世引发母校和校友群体集体哀悼</li><li>校友组织通过官方渠道表达悼念凝聚情感</li><li>高校校友关系维护的重要性被重新审视</li><li>数字化校友服务成为高校管理新方向</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>高校校友生命周期管理平台。除常规校友录功能外，特设纪念板块记录已故校友贡献，组织线上追思会。提供校友互助、职业发展、捐赠管理、母校动态推送等服务，用数字方式延续校友情谊，强化母校认同感。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>各高校校友会组织、在校生及毕业校友、高校行政管理部门</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 56.666666666666664%"></div></div>
+                        <span>17/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 48%"></div></div>
+                        <span>12/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>64/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
