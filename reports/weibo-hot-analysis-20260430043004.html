@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/04/30 12:30</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">2</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">8</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 中1000w彩票冷知识</span>
+                <span class="score-badge">86分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「财富后悔药」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>公众好奇：大奖得主的后续生活充满神秘感和吸引力</li><li>财商教育：多数人缺乏应对突然财富的知识储备</li><li>真实案例：许多中奖者因不当决策导致财富流失</li><li>教育需求：通过趣味方式普及财富管理知识</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>模拟中大奖后的人生决策游戏，基于真实案例数据，用户体验突然暴富后的各种选择和后果。包含税务规划、投资陷阱、人际关系变化、心理压力等场景，通过互动剧情揭示财富管理冷知识，寓教于乐。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-45岁对财富管理感兴趣的普通人、彩票购买者、理财小白、喜欢模拟经营游戏的用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>86/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 骑士3比2猛龙</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「赛场时光机」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>季后赛进程：系列赛比分牵动球迷情绪</li><li>回顾需求：球迷喜欢重温和分析经典比赛</li><li>深度内容：战术分析类内容受到专业球迷欢迎</li><li>技术可能：AI和VR技术让沉浸式体验成为可能</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>经典比赛沉浸式回顾平台，用AI重构历史比赛关键时刻，用户可选择不同视角（球员第一人称、教练视角、解说席）重温经典对决。提供战术拆解、数据可视化、what-if场景模拟，让球迷深度理解比赛。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-40岁资深球迷、体育数据爱好者、篮球战术研究者、怀旧向体育内容消费者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>27/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 5月起未经同意不得发送商业短信</span>
+                <span class="score-badge">73分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「短信守门员」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>新规出台：5月起实施未经同意不得发送商业短信的规定</li><li>公众痛点：长期遭受垃圾短信骚扰，个人信息泄露严重</li><li>维权困难：现有投诉渠道复杂，用户缺乏有效反制手段</li><li>市场机遇：监管加强为短信管理类产品提供政策红利</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>智能识别并拦截商业短信，自动分类垃圾信息，用户可一键举报违规短信并获得现金奖励。建立黑名单数据库，接入工信部投诉通道，帮助用户维权并追踪处罚结果，打造清净的短信环境。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-50岁智能手机用户，特别是经常收到骚扰短信的上班族、网购用户、个人信息曾泄露的群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>18/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>15/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>73/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 火箭vs湖人</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「赛后诸葛亮」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>赛事热度：NBA季后赛关键场次吸引大量球迷关注</li><li>社交需求：球迷渴望展示专业分析能力和参与讨论</li><li>内容创作：赛事相关短视频和梗图传播力强</li><li>竞猜文化：体育竞猜与社交娱乐结合成为趋势</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>AI驱动的体育赛事预测社交平台，用户赛前预测比分和关键数据，赛后根据准确度生成个性化战报和段子，自动剪辑精彩瞬间配上用户的神评论，生成可分享的视频内容，建立预测能力排行榜。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁篮球爱好者、NBA球迷、喜欢社交互动和展示预测能力的年轻男性群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 义乌不断有新纪录</span>
+                <span class="score-badge">78分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「义乌淘宝贝」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>义乌现象：作为全球小商品之都不断创造贸易新纪录</li><li>供应链优势：强大的生产能力和快速响应机制</li><li>个性化需求：消费者对定制化、小批量产品需求增长</li><li>出海机遇：跨境电商和DTC品牌需要灵活供应链支持</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>连接义乌小商品市场的反向定制平台，用户发起创意产品需求，平台匹配义乌工厂快速打样生产。提供小批量定制、48小时出样、全球直邮服务，让个人和小企业也能享受义乌供应链红利。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-40岁创业者、电商卖家、设计师、需要定制礼品的企业采购、追求个性化的年轻消费者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>78/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 vlog品类主理人独家访谈</span>
+                <span class="score-badge">71分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「Vlog成长罐」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>内容形式：Vlog成为主流内容创作形式之一</li><li>创作门槛：新手创作者面临选题、剪辑、运营等多重挑战</li><li>专业指导：头部创作者经验分享具有高参考价值</li><li>工具需求：创作者需要更智能的辅助工具提升效率</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>Vlog创作者的一站式成长平台，提供AI脚本助手、智能剪辑建议、热点话题库、同类博主数据对比分析。设置成长任务体系和里程碑奖励，记录创作历程，自动生成年度创作报告，帮助Vlogger持续进步。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-30岁Vlog创作者、视频内容爱好者、自媒体从业者、希望记录生活的年轻人</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 68%"></div></div>
+                        <span>17/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>71/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 年轻人出门越来越极简了</span>
+                <span class="score-badge">77分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「一口袋星球」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>生活方式转变：年轻人拥抱极简主义和断舍离理念</li><li>数字化趋势：电子支付和数字证件减少实物携带需求</li><li>效率追求：快节奏生活中希望减少物品管理负担</li><li>消费升级：愿意为高质量多功能产品付费</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>极简出行装备优化方案平台，根据出行场景（通勤、旅行、运动）智能推荐最精简装备组合。提供多功能单品评测、空间收纳技巧、数字化替代方案（电子证件、移动支付）、紧急情况应对指南，打造真正的轻装出行。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-35岁追求极简生活方式的年轻白领、数字游民、minimalist生活理念践行者、短途旅行爱好者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>21/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 68%"></div></div>
+                        <span>17/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>77/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 霍尔木兹海峡部分被困船员已遇难</span>
+                <span class="score-badge">66分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「航海守护者」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>突发事件：霍尔木兹海峡船员遇难引发关注</li><li>职业风险：船员工作环境面临多重安全威胁</li><li>信息不对称：家属难以及时了解船员安全状况</li><li>保障缺失：现有安全预警和救援机制不够完善</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>船员安全信息聚合平台，实时显示全球海域风险等级、政治局势、海盗活动区域。为船员家属提供船舶实时位置追踪、紧急联络通道、保险理赔指引。建立船员互助社区，分享安全经验和求助信息。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>全球船员及其家属、航运公司管理人员、海事安全关注者、国际物流从业者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 40%"></div></div>
+                        <span>10/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>66/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 伊能静回应与秦昊婚姻状态</span>
+                <span class="score-badge">75分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「婚姻气象站」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>公众关注：明星婚姻状态成为热议话题</li><li>情感焦虑：现代人婚恋关系面临更多挑战</li><li>自我觉察：需要工具帮助审视和改善亲密关系</li><li>知识需求：渴望学习经营婚姻的方法和技巧</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>夫妻关系健康度检测工具，通过趣味问卷、日常互动记录、情绪日记分析婚姻状态，生成可视化关系报告。提供明星夫妻相处模式案例库、专业心理咨询师轻量级建议、情侣任务挑战，帮助伴侣更好理解彼此。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-45岁已婚或恋爱中的情侣、关注情感话题的都市男女、婚姻关系出现困惑的群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 63.33333333333333%"></div></div>
+                        <span>19/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>75/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 苹果印度生产线陷入停摆</span>
+                <span class="score-badge">74分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「供应链雷达」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>事件冲击：苹果印度产线停摆暴露供应链脆弱性</li><li>全球化风险：地缘政治和区域因素影响生产稳定</li><li>企业痛点：缺乏有效工具预判和应对供应链中断</li><li>韧性需求：企业急需建立多元化和抗风险能力</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>全球供应链风险预警平台，聚合政治、经济、自然灾害、疫情等多维度数据，为企业提供供应链脆弱性评估。智能推荐备选供应商和生产基地，模拟突发事件影响，帮助企业建立韧性供应链和应急预案。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>制造业企业管理者、供应链经理、采购负责人、跨国公司运营团队、投资机构分析师</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 83.33333333333334%"></div></div>
+                        <span>25/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 48%"></div></div>
+                        <span>12/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>74/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
