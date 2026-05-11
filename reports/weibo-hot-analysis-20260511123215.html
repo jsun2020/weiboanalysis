@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/05/11 20:32</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">6</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">4</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 孙颖莎11350分女单世一</span>
+                <span class="score-badge">82分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「莎动力·乒乓成长轨迹」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>孙颖莎在世界乒联积分榜以11350分登顶女单世界第一，创历史新高</li><li>该成绩引发网友热议，乒乓热潮再次席卷国内，青少年报名训练人数激增</li><li>众多粉丝和运动爱好者希望以科学方式向顶尖选手学习技术</li><li>市面上缺乏基于真实世界冠军数据的专业AI陪练工具，市场空白明显</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>以孙颖莎为原型的乒乓球AI陪练应用，通过摄像头实时分析用户挥拍姿势与节奏，生成与世界排名第一选手的技术对比雷达图，内置「世界第一养成」成长路径系统，记录用户每次练习数据，以积分排行榜形式可视化进步曲线，激励青少年坚持训练。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>8-18岁乒乓球爱好者及青少年运动员，关注体育偶像的学生群体，以及望子成龙的体育家长</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>82/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 低智商犯罪</span>
+                <span class="score-badge">82分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「破案脑洞·反侦查思维训练营」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>多起因作案手法拙劣而迅速落网的犯罪案件在网络上引发广泛讨论</li><li>网友将此类案件戏称为'低智商犯罪'，相关话题热度持续高涨</li><li>公众在调侃的同时也引发对犯罪心理与法律认知缺失的深层思考</li><li>借助游戏化手段进行法治教育的需求凸显，寓教于乐市场尚未饱和</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款以真实低智商犯罪案例为素材改编的互动推理游戏App，玩家扮演侦探或罪犯双视角体验案件，通过脑洞测试和逻辑漏洞分析，了解犯罪心理学与反侦查常识。同时内嵌法律小课堂，寓教于乐地普及刑事法律知识，防止冲动犯罪。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁推理游戏爱好者、法律学生、犯罪心理学感兴趣人群，以及关注社会新闻的上班族</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>82/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 一图读懂家庭应急物资该备什么</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「备得住·家庭应急物资管家」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>受近年自然灾害频发及公共安全事件影响，官方和媒体持续科普家庭备灾知识</li><li>相关图文在微博迅速传播，公众应急备灾意识显著提升</li><li>但大多数家庭缺乏系统化管理应急物资的工具，备而不管的问题突出</li><li>市场上尚无专注家庭应急物资全生命周期管理的垂直产品，商业化空间清晰</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>家庭应急物资智能管理App，用户扫描或录入家中应急物品后，系统自动生成物资清单、有效期预警和补货提醒。根据家庭人口结构（老人、孩子、孕妇）智能推荐个性化物资配置方案，并附带突发灾害应对SOP手册，支持一键分享给家庭成员，实现全家应急协同管理。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-50岁家庭主妇/主夫、有老人或孩子的家庭用户、防灾意识较强的城市中产家庭</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>15/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 开榴莲开出三房榴莲糖</span>
+                <span class="score-badge">86分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「盲榴·榴莲奇遇盲盒糖」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>一位网友分享视频：购买榴莲切开后意外发现内部出现极罕见的三个独立果房糖</li><li>视频在微博迅速走红，网友纷纷感叹'开榴莲也能开出ssr'</li><li>话题引发大规模跟风购买榴莲和开箱分享浪潮，榴莲相关商品搜索量暴增</li><li>网友将榴莲开箱与盲盒文化自发联结，衍生创意产品概念呼之欲出</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>以榴莲为主题的创意零食盲盒产品，每盒外形仿制真实榴莲外壳，打开后随机出现不同夹心的榴莲糖——普通款、稀有浓香款、极稀有'三房糖'豪华款。附带开箱惊喜概率标注与社交分享贴纸，用户可拍照发布开箱视频，形成自传播裂变效应，打造榴莲界的'盲盒经济'。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-30岁榴莲爱好者、盲盒收集控、喜欢分享美食开箱的年轻女性、东南亚美食文化爱好者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>86/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 唐艺昕的妆像当年郑恺化的</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「时光妆镜·明星妆容穿越机」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>网友发现唐艺昕在某综艺中的妆容风格与多年前郑恺出道时的造型高度相似</li><li>话题引发网友大规模翻出旧照对比，引爆怀旧情绪与审美讨论</li><li>讨论延伸至不同年代妆容流行趋势的变迁，相关美妆内容持续发酵</li><li>明星妆容模拟与年代穿越滤镜在年轻女性用户中具有极强的病毒传播潜力</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>AI美妆AR应用，用户上传自拍后可一键模拟不同年代、不同明星的经典妆容风格，并支持'穿越对比'功能——将同一张脸同时呈现2000年代复古妆与当代流行妆的对比效果。内置妆容师点评AI，分析哪种风格最适合用户脸型，同步推荐对应美妆产品购买链接。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁爱美女性、彩妆博主、追星族、对复古潮流感兴趣的时尚达人</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 63.33333333333333%"></div></div>
+                        <span>19/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 雪糕是糖油混合物具象化了</span>
+                <span class="score-badge">83分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「真相雪糕·成分可视化健康甜品」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>网友发帖讨论雪糕成分表，指出高端雪糕本质上是糖、植物油、添加剂的混合物</li><li>话题引发广泛共鸣，大量消费者感叹'说不出的难受又想吃'的矛盾心理</li><li>食品成分透明化讨论持续发酵，消费者对食品添加剂认知需求显著上升</li><li>健康饮食可视化工具赛道用户基础广泛，与成分科普内容结合的产品形态尚属新颖</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>扫描任意雪糕条形码或拍照识别，即时生成该产品糖分、脂肪、添加剂的3D可视化图表——将抽象的克重数字转化为'等于N个方糖+N勺植物油'的直观呈现。同时推荐更健康的替代产品，支持用户自定义'每日糖油摄入预算'，实现零食热量的趣味化管理。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁关注健康饮食的年轻女性、减肥人群、营养学爱好者、有孩子的家长</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>21/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>83/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 等风热吻你 宋祖儿宋威龙</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「追剧伴侣·CP情绪共鸣站」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>宋祖儿与宋威龙主演甜宠剧《等风热吻你》热播，双宋CP引发粉丝狂热追捧</li><li>剧中多个名场面在微博形成热搜，相关二创内容爆发式增长</li><li>粉丝追剧时渴望与他人同频互动，传统弹幕平台无法满足深度情感共鸣需求</li><li>追剧社交化趋势明显，围绕热播剧构建实时情感互动产品的市场时机成熟</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>专为热播剧粉丝打造的实时情绪共鸣社交产品，用户追剧时可同步触发'心动瞬间'标记，与全网粉丝共享同一帧的集体尖叫时刻。内置CP热度情绪温度计、名场面GIF一键生成、剧情预测押注等功能，将追剧从孤独行为变成万人同频的社交狂欢体验。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>16-28岁都市剧/甜宠剧女性粉丝群体、CP嗑糖爱好者、追星族及剧评博主</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>18/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 辛芷蕾代言大众含金量飙升</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「星驾值·明星代言品牌价值追踪器」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>辛芷蕾凭借近期强势作品和口碑积累，其代言大众汽车的含金量被网友重新评估</li><li>话题引发对明星代言价值与品牌匹配度的广泛讨论，营销从业者积极参与</li><li>娱乐圈代言市场缺乏透明的数据化评估工具，决策多依赖主观判断</li><li>数据驱动的娱乐营销决策需求日益迫切，垂直数据产品存在明显市场缺口</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>实时追踪明星代言品牌商业价值波动的数据可视化工具，通过抓取社交媒体舆情、品牌销售数据、搜索指数等多维度指标，生成明星代言ROI评估报告。品牌方可用于代言人选角决策，粉丝可用于追踪偶像商业价值成长曲线，支持多明星横向对比与历史趋势分析。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>品牌营销从业者、广告公司策划、追星族中关注偶像商业价值的数据控、娱乐营销研究者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 83.33333333333334%"></div></div>
+                        <span>25/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 女子离婚多年被判共还前夫百万欠债</span>
+                <span class="score-badge">78分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「婚前明镜·婚姻财务风险防护盾」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>一女子离婚多年后被法院判决需共同偿还前夫婚姻存续期间所欠的百万债务</li><li>案件细节在微博引发轩然大波，大量网友对婚内债务连带责任规则感到震惊</li><li>话题推动公众关注婚姻财务风险，律师、专家纷纷科普共同债务认定相关法律</li><li>广大已婚或待婚女性迫切需要简单易懂的工具来了解并防范婚姻财务法律风险</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>婚前/婚姻财务风险评估与保护工具，提供婚前财产公证指引、婚内债务隔离协议模板、配偶债务风险预警（通过公开司法数据查询）等功能。内置婚姻财务法律问答AI，帮助用户理解婚姻法中共同债务认定的边界，提前规避潜在法律风险，守护个人财产安全。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-45岁已婚或准备结婚的女性，尤其是有独立资产的职场女性、离异人群及关注婚姻法的法律从业者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 56.00000000000001%"></div></div>
+                        <span>14/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>78/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 急救宣布老人死亡家属发现仍有呼吸</span>
+                <span class="score-badge">70分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「生命哨兵·智能生命体征守护贴」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>急救人员宣布一名老人死亡后，家属发现老人仍有微弱呼吸迹象，事件引发强烈社会关注</li><li>话题触发公众对急救失误、生命体征判断标准及老年人医疗保障的深层焦虑</li><li>类似事件的多次出现暴露出现有急救流程中技术手段滞后的系统性问题</li><li>连续生命体征监测的市场需求因老龄化加剧而急速扩大，医疗级可穿戴设备商业化路径清晰</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款可穿戴生命体征持续监测智能贴片，实时监测心跳、呼吸频率、血氧等核心生命指标，当数值异常时通过手机App向家属和紧急联系人同步预警。针对老年群体设计超薄柔性贴片形态，可连续使用7天，云端存储生命体征历史数据，为医疗纠纷提供客观证据支持。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>65岁以上独居或慢性病老年人、有老年家庭成员的中年子女、养老机构运营者、医疗纠纷高发场景从业者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 40%"></div></div>
+                        <span>10/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>70/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
