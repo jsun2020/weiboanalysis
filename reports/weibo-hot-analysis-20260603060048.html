@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/06/03 14:00</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">7</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">3</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 男童被机器人踢中腹部痛苦倒地</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「守卫盾」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>某展览/公共场所一台服务或展示机器人在运动中踢中一名男童腹部，男童痛苦倒地</li><li>视频在微博迅速传播，引发公众对机器人公共安全规范的强烈质疑</li><li>家长群体担忧儿童与机器人近距离接触的潜在风险，呼吁相关监管介入</li><li>事件推动社会讨论：机器人商业化落地是否缺乏完善的儿童安全防护标准</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款面向公共场所机器人交互的儿童安全防护系统，集成AI距离感知腕带与场馆机器人联动协议。当儿童进入机器人动作半径危险区时，腕带震动预警，同时向机器人控制端发送减速/暂停指令，并自动记录事故前后10秒视频，一键生成事故责任报告。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>3-12岁儿童家长，尤其是频繁带孩子参观科技展馆、主题乐园的城市中产家庭；同时面向机器人展览运营方及智能场馆管理人员</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 56.00000000000001%"></div></div>
+                        <span>14/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 公司烧不起token了</span>
+                <span class="score-badge">83分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「省AI管家」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>随着企业大量接入GPT/Claude等大模型API，月度Token账单急剧攀升，部分中小公司叫苦不迭</li><li>微博上有创业者吐槽Token费用已超过人力成本，引发大量同行共鸣转发</li><li>行业开始反思AI应用的ROI，'烧Token'成为2025-2026年AI创业的核心痛点之一</li><li>市场上缺乏专门针对中小企业的Token成本优化工具，需求窗口明显</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>面向中小企业的AI调用成本智能管控平台。自动分析企业内各部门/人员的API调用日志，识别高消耗低价值请求，提供Prompt压缩优化建议、模型降级策略（自动切换至性价比更高的模型）、Token预算分配看板及月度超支预警，帮助企业在不降低AI使用体验的前提下削减30%-60%的Token开销。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>年营收500万以下的中小科技企业CTO/技术负责人、独立开发者、AI产品团队负责人；特别适合已接入大模型但缺乏精细化成本管控的创业公司</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 64%"></div></div>
+                        <span>16/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>83/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 丁程鑫不敢想结婚</span>
+                <span class="score-badge">89分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「婚前脱敏器」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>丁程鑫在某综艺节目中坦言'不敢想结婚'，引发粉丝及广大年轻网友强烈共鸣</li><li>话题迅速登上热搜，众多网友表示'和爱豆想法一样'，折射出当代年轻人普遍的恐婚心态</li><li>经济压力、自我意识觉醒、原生家庭影响等被认为是年轻一代不敢结婚的主要原因</li><li>该话题持续发酵，引发关于婚姻制度、个人自由与社会期望的广泛讨论</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款专为'恐婚族'设计的趣味情感模拟游戏App。用户可在虚拟世界中体验从恋爱、同居到婚姻的全流程，包括财务规划模拟、与AI伴侣的争吵和好情景、育儿压力关卡等，通过游戏化方式逐步降低对婚姻的恐惧感，并在通关后生成个性化「婚姻准备度报告」，推荐针对性心理课程或情感咨询。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>22-35岁单身或处于恋爱关系中的年轻人，尤其是偶像出道、粉圈文化影响下的Z世代；对婚姻持观望态度的职场新人和娱乐重度用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 83.33333333333334%"></div></div>
+                        <span>25/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>89/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 穿洞洞鞋得了角化型脚气</span>
+                <span class="score-badge">85分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「足迹卫士」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>洞洞鞋（Crocs类）近年来成为时尚单品，大量年轻人长期穿着，但其透气性问题被忽视</li><li>有网友分享穿洞洞鞋后患上角化型脚气的亲身经历，图文并茂引发大量转发和讨论</li><li>医生科普指出洞洞鞋虽有孔洞但脚掌贴合面积大、排汗不畅，反而易滋生真菌</li><li>话题引发'时尚与健康'取舍讨论，相关皮肤科问诊和脚气药搜索量激增</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款集足部健康检测与预防方案于一体的小程序。用户拍摄足部照片，AI自动识别脱皮、角化、水疱、趾间浸渍等脚气早期症状，结合用户鞋履习惯（洞洞鞋/运动鞋/皮鞋）、出汗情况输出个性化防治方案，并接入药品电商直达推荐。还提供'鞋子通风评分'功能，扫描鞋底孔洞分布评估透气性。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-40岁喜欢穿洞洞鞋、人字拖等时尚凉鞋的年轻人；经常在健身房、泳池、公共浴室活动的人群；夏季户外工作者及运动爱好者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>85/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 莲花CEO称超过1.8吨就是菜车</span>
+                <span class="score-badge">85分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「车重鉴定仪」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>莲花汽车（Lotus）CEO在公开场合发表言论，称车重超过1.8吨的车就是'菜车'，意在强调莲花轻量化运动理念</li><li>此言论迅速引发轩然大波，众多主流品牌（问界、理想等重量普遍超标）车主强烈反弹</li><li>网友纷纷搬出各品牌车重数据互怼，'菜车认定标准'成为全民梗</li><li>事件折射出新能源时代重量与续航、安全性之间的深层矛盾，引发汽车价值观大讨论</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款汽车参数趣味对比与吐槽社区App。用户输入任意车型，自动展示整备质量、性能参数，并以幽默可视化方式（如'相当于几头牛'）进行横向对比。核心玩法是'给你的爱车贴标签'——根据重量、马力、价格自动生成搞笑称号（如菜车、钢铁侠、小蛮腰），用户可一键分享至微博/朋友圈挑战好友互怼。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-45岁汽车爱好者及普通车主，尤其是关注新能源/豪华车品牌的男性用户；汽车垂直媒体从业者和汽车博主</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>85/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 喜欢你6开播都在等一句我也是</span>
+                <span class="score-badge">92分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「我也是」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>爱情综艺/剧集《喜欢你》第6季开播，节目中嘉宾相互试探、等待对方先开口表白的情节引发大量共鸣</li><li>弹幕和评论区涌现出大量'就在等一句我也是'的留言，折射出年轻人对互相表白的渴望与恐惧</li><li>话题在微博发酵，网友晒出自己现实中'等不来我也是'的经历，引发广泛情感共鸣</li><li>甜宠内容与真实情感需求的强共振，催生出对低风险表白工具的潜在需求</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款专为含蓄表白设计的情感传递App。用户可以匿名或实名向特定联系人发送一段话，对方收到后只有两个按钮：「我也是」和「谢谢你」。若双方均点击「我也是」则同时揭晓，触发专属纪念页面和情侣互动功能；若一方点「谢谢你」，则另一方永远不会知道对方的回应内容，保护双向尊严，降低表白心理门槛。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>16-28岁在校学生及职场新人，尤其是性格内敛、受偶像剧/甜宠综艺影响的Z世代女性；追星人群及浪漫主义情感需求用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>92/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 耳机是一个很私密的物件</span>
+                <span class="score-badge">89分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「声境」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>某博主或KOL发文称'耳机是一个很私密的物件'，引发大量网友共鸣留言</li><li>网友分享耳机里存着'不能被任何人听到'的歌单，探讨耳机作为情绪容器的独特属性</li><li>话题延伸至个人隐私、精神独处空间以及数字时代人际边界的哲学讨论</li><li>耳机的'私密性'被重新定义，不仅是硬件工具，更成为现代人情感表达与保护的象征</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款基于耳机收听数据的私密情绪日记App。在用户授权下，分析其音乐/播客收听记录（曲风、BPM、歌词情感倾向），自动生成每日「声音情绪报告」，并基于收听习惯推测用户当日情绪状态，生成只有自己可见的'耳机日记'。用户可选择将特定歌单片段分享给亲密好友，以音乐代替文字传递难以言说的心情。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁有独处习惯、情感细腻的年轻人；重度音乐用户和播客听众；习惯用耳机作为'与世界隔离结界'的城市独居人群</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>89/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 稳住心态更要守住防线</span>
+                <span class="score-badge">74分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「心防镜」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>话题疑似源于官方媒体针对当前复杂舆论环境或特定社会事件发布的引导性表述</li><li>公众在多重社会压力（经济、国际局势、AI冲击）下普遍存在焦虑情绪，容易被极端信息带节奏</li><li>网络谣言与境外信息渗透事件频发，相关部门持续强调公民要坚守理性认知防线</li><li>心理健康与媒体素养教育需求同步上升，二者结合的产品市场尚属空白</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款结合心理健康与信息安全双维度的个人防护App。通过每日情绪检测问卷+AI分析用户近期浏览/社交内容，识别可能被情绪操控、谣言渗透或诈骗话术影响的高风险状态，及时推送「冷静提示」和辟谣内容，同时提供压力值可视化报告与专业心理师预约通道，帮助用户在信息洪流中保持理性判断力。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-45岁职场人群及在校大学生，尤其是长期高压、信息焦虑的一线城市白领；同时适用于关注网络舆论环境、担忧家人受谣言影响的中年用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>15/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>74/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 李小冉疑似录制节目受伤</span>
+                <span class="score-badge">76分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「艺人安全官」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>知名演员李小冉在参与某综艺节目录制过程中疑似受伤，相关信息在网络流传</li><li>此事件再度引发公众对综艺节目安全保障机制缺失的关注，艺人伤亡事故历史案例被重新提及</li><li>粉丝和行业人士呼吁制作方承担更多安全责任，完善录制现场医疗保障</li><li>监管层面对综艺制作安全标准的讨论升温，行业自律诉求日益强烈</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>面向综艺节目制作方的艺人健康风险管理SaaS平台。录制前AI扫描节目脚本，自动标注高风险环节（极限挑战、户外运动、道具互动等）并给出安全等级评分；录制中通过可穿戴设备实时监测艺人心率、运动幅度；录制后自动生成安全复盘报告。同时内置医疗应急预案模板和法律免责协议生成器。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>综艺节目制作公司、电视台及流媒体平台的制片人和安全统筹；艺人经纪公司风控负责人；广告主（关注艺人健康风险对代言的影响）</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 83.33333333333334%"></div></div>
+                        <span>25/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 52%"></div></div>
+                        <span>13/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>76/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 问界回应浙江台州M9事故</span>
+                <span class="score-badge">71分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「新能源行车黑匣子」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>浙江台州发生一起问界M9车辆事故，事故原因和责任认定存在争议</li><li>问界官方发布声明回应，但车主方与厂商对事故数据解读存在分歧，引发舆论关注</li><li>事件触发公众对新能源汽车数据掌控权的深层焦虑：行车数据究竟归谁所有、谁说了算</li><li>监管部门和行业协会关于新能源汽车事故数据标准化存证的讨论再度被推上议程</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>专为新能源汽车设计的独立行车数据记录与事故溯源系统。采用物理隔离的独立存储模块（防水防火防碰撞），实时记录车速、电池状态、刹车踏板力度、转向角度、OTA版本号等50+维度数据，事故发生后可由第三方机构提取，数据经区块链加密确保不可篡改，为车主、厂商、保险公司和司法机构提供客观可信的事故证据链。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>新能源汽车车主（尤其是问界、理想、特斯拉等智能驾驶功能用户）；交通事故司法鉴定机构；汽车保险公司风控部门；新能源汽车厂商售后与公关团队</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 40%"></div></div>
+                        <span>10/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>71/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
