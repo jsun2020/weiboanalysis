@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/06/09 13:01</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">7</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">3</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 高考地理</span>
+                <span class="score-badge">82分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「地图侦探」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>高考地理科目开考，网络上大量考生分享题目截图，话题迅速登上热搜</li><li>网友纷纷讨论地理题难度，尤其是区域地理、自然地理等高频考点引发广泛共鸣</li><li>老师和博主开始在线解析真题，地理知识学习需求在考后短时间内爆发</li><li>话题热度折射出高考地理备考痛点：知识零散、死记硬背效果差，市场存在创新学习工具缺口</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>以高考地理真题为核心数据库，结合AR地图技术，让用户扫描现实地形自动识别地理特征（如等高线、气候带、河流走向），并关联高考考点进行实时解析。内置历年真题智能推送，根据用户答题弱点自动生成专项练习包，支持考生、老师、地理爱好者协同标注地图知识点。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>15-18岁高中生（尤其高三考生）、地理教师、地理科普爱好者，对应试有强烈需求但希望学习方式更生动的人群</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>82/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 世界杯主裁被美国拒签</span>
+                <span class="score-badge">81分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「裁判通」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>2026年世界杯将在美国、加拿大、墨西哥联合举办，赛事筹备期间签证问题开始受到关注</li><li>指定参与世界杯执法的裁判因护照国籍敏感被美国拒签，国际足联面临裁判员调配危机</li><li>事件曝光后，外界批评美国将政治凌驾于国际体育赛事之上，引发广泛舆论争议</li><li>国际足联被迫启动备用裁判名单，并就签证问题与东道主展开紧急交涉，暴露赛事筹备漏洞</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款面向国际赛事从业者（裁判、球员、教练等）的签证与出行智能助手。输入国籍、赛事目的地、出行时间，系统自动评估签证风险等级、推荐最优申请路径，并提供历史签证拒绝案例数据库和实时领事馆动态预警。当政治局势变化影响出行时，自动触发替代方案（第三国中转、紧急豁免申请指引等）。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>国际体育从业者（裁判员、运动员经纪人、赛事组委会工作人员）、频繁跨境的体育媒体记者，以及关注地缘政治与体育交叉议题的用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>15/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>81/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 平壤体育馆专场文艺演出高清大图</span>
+                <span class="score-badge">82分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「幕后星球」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>朝鲜在平壤大型体育馆举办高规格文艺演出，场面宏大壮观，整齐划一的集体表演引发外界关注</li><li>高清图片流出后迅速在社交媒体传播，网友对其视觉震撼力和独特的集体美学展开热烈讨论</li><li>媒体分析演出内容中的政治符号与宣传意图，引发国际社会对朝鲜内政的新一轮解读热潮</li><li>图片的稀缺性与神秘感叠加，使话题热度持续发酵，折射出公众对封闭国家文化奇观的强烈好奇心</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>聚合全球大型文艺演出、阅兵式、体育赛事开幕式的高清现场图集，利用AI图像识别技术自动标注表演规模（人数、队形、色块面积）、历史背景与文化符号解读。用户可对比不同国家同类演出的规模与风格，并通过「文化解码」模块了解演出背后的政治、艺术与社会语境，支持地图热力图展示全球演出文化分布。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-45岁文化观察者、国际关系爱好者、摄影收藏爱好者、纪录片创作者，以及对朝鲜半岛局势感兴趣的政治观察人群</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>82/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 六年没消息的群突然响了一声</span>
+                <span class="score-badge">91分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「沉默档案馆」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>网友发帖分享六年未动的群聊突然有消息，引发大量网友感同身受的共鸣跟帖</li><li>话题迅速发酵，网友纷纷晒出自己的「史前群聊」复活故事，形成UGC内容浪潮</li><li>讨论从搞笑扩展到对旧友情、时间流逝的感慨，话题情感深度引发二次传播</li><li>事件折射出中国社交软件群聊文化的独特现象：群越建越多、真正活跃的越来越少，数字社交断联感成为现代人共同痛点</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款微信/QQ群「历史复苏」追踪工具，记录用户所有群聊的沉默时长、最后发言人、群成员现状变化（已离群/改名/头像更换），并在群聊突然复活时自动生成「群的前世今生」时间轴摘要。内置情感标签系统（同学群/工作群/兴趣群），当沉默群响起时推送怀旧内容卡片，帮用户决定是否要回复或悄悄退群。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-40岁上班族及毕业多年的大学生、有大量沉默群困扰的社交平台重度用户、对「数字社交遗迹」有情感共鸣的人群</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>27/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>91/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 警方对山姆打包哥实施强制措施</span>
+                <span class="score-badge">87分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「边界感测试仪」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>山姆会员超市某顾客因大量打包免费试吃食品的视频在网上广泛流传，引发网友对「薅羊毛」边界的讨论</li><li>当事人行为从最初的「聪明消费」舆论逐渐转向「扰乱秩序、占用公共资源」的批评声音</li><li>警方介入并对当事人实施强制措施，将事件从舆论争议升级为法律事件，话题热度急剧攀升</li><li>事件引发社会对会员制超市规则合理性、消费者行为边界以及平台监管责任的深层讨论</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款消费者行为与法律边界科普互动工具。用户输入消费场景（如会员超市、自助餐、共享单车等），AI自动分析该行为在法律、道德、商业规则三个维度的评级，并给出「灰色地带指数」。同时聚合真实案例库，当类似事件热搜出现时自动推送「你可能也好奇的法律解读」，帮用户建立清晰的消费边界认知，避免因薅羊毛过度引发法律风险。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-45岁精打细算的消费者（尤其会员制超市用户）、对消费者权益与商家规则边界感兴趣的法律科普受众、电商/零售从业者，以及关注社会热点事件法律解读的普通网友</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 83.33333333333334%"></div></div>
+                        <span>25/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>87/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 打开康师傅看球有赢面</span>
+                <span class="score-badge">83分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「扫码狂欢站」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>康师傅推出世界杯营销活动，购买指定产品扫码可参与抽奖或赢取观赛权益，广告大规模投放</li><li>「打开康师傅看球有赢面」的广告语在世界杯热度加持下快速出圈，形成品牌与赛事的强绑定印象</li><li>网友分享中奖截图与「欧气」故事，UGC内容助推话题在社交平台持续发酵扩散</li><li>事件折射出世界杯期间快消品品牌借势营销的普遍策略，以及消费者对「买东西顺便赢奖」娱乐化购物体验的天然好感</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款聚合快消品世界杯促销活动的「一站式刮奖神器」。用户扫描任意参与活动品牌的包装码，APP自动识别活动规则、中奖概率、奖品池，并横向对比同期所有品牌促销活动的性价比（单次购买期望奖励价值）。内置「联合开奖」功能，多人组队扫码可触发隐藏奖励，同时生成用户专属的「世界杯集卡图鉴」，将碎片化的扫码行为转化为沉浸式游戏体验。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-40岁世界杯球迷（尤其快消品重度消费者）、热衷参与品牌促销活动的薅羊毛达人、便利店/超市高频购物的年轻上班族，以及快消品营销研究者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>83/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 特朗普看NBA总决赛睡着了</span>
+                <span class="score-badge">88分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「看球清醒度挑战」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>美国NBA总决赛期间，特朗普作为知名球迷出席观赛，被媒体或网友拍到在比赛中途睡着的画面</li><li>图片/视频在社交媒体迅速传播，网友纷纷调侃「连特朗普都睡着了，可见比赛有多无聊」或「日理万机太累了」</li><li>话题在体育圈和政治娱乐化讨论中形成双线传播，引发关于NBA现场观赛体验及比赛精彩程度的延伸讨论</li><li>事件以轻松诙谐的方式将政治人物人格化，是典型的「名人尬事」娱乐化传播，全球网友共情度高</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款专为球迷熬夜观赛设计的「反睡神」互动工具。用户开启后，APP通过手机前置摄像头的眼部追踪技术实时监测困意（眨眼频率、头部晃动），一旦检测到困意立即触发高燃比赛集锦片段唤醒。内置「清醒度排行榜」让球迷互相激励，并可生成个人专属的「熬夜观赛战报」（几点开始、撑了多久、哪个精彩时刻让你清醒）发朋友圈打卡。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-45岁需要熬夜看海外赛事直播的体育迷（NBA/世界杯/欧冠等），学生党和上班族球迷，以及对特朗普相关娱乐化内容有兴趣的泛娱乐用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>88/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 看世界杯舅用移动</span>
+                <span class="score-badge">74分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「球迷流量管家」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>中国移动获得世界杯直播版权或推出专属观赛套餐，展开大规模营销推广活动</li><li>「看世界杯就用移动」的广告语或口碑在球迷圈层广泛传播，形成话题效应</li><li>用户对比各运营商世界杯套餐，引发网络上关于流量资费与观赛体验的热烈讨论</li><li>事件折射出世界杯版权争夺与运营商流量营销的深度绑定，消费者在多平台多套餐间选择困难</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款世界杯观赛专属流量优化工具，接入三大运营商API，智能对比用户当前套餐与世界杯专属观赛流量包的性价比，一键切换或叠加最优方案。内置直播码率自适应调节（在信号差时自动降码率防卡顿）、多人组队共享流量包功能，以及运营商隐藏福利挖掘模块，帮用户找到最便宜的流量观赛路径。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-50岁足球爱好者、移动用户（中国移动用户为核心）、对运营商套餐选择感到困惑的普通消费者，以及需要在户外或聚会场景流畅观赛的球迷群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>18/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>74/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 天赐7官宣</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「综艺追更雷达」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>《天赐的声音》第七季正式官宣，引发粉丝群体对新嘉宾阵容的强烈期待与讨论</li><li>老粉回顾历季经典名场面，新粉因推荐算法入坑，节目IP热度借官宣节点二次爆发</li><li>官方释出阵容信息后，网友对歌手组合搭配展开激烈预测与争论，话题持续发酵</li><li>事件体现出长寿综艺IP的强大粉丝粘性，以及官宣营销节点对综艺话题度的精准激活能力</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>针对长系列综艺节目的追更管理工具，聚合《天赐的声音》等长寿综艺的历年数据（嘉宾、收视、名场面、口碑变化），在新季官宣时自动生成「历季对比分析卡」，帮用户快速了解新老嘉宾阵容变化、预测爆点。支持多平台播出提醒、弹幕热词分析和「粉丝许愿池」（投票希望哪些歌手参与新季）。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-35岁音乐综艺重度用户、追星族（尤其关注歌手综艺动态的粉丝）、娱乐内容创作者（微博/小红书博主），以及对国内综艺工业有持续关注的娱乐媒体从业者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 白鹿莫离招商能力</span>
+                <span class="score-badge">79分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「剧星带货力」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>白鹿主演的《莫离》播出后口碑与热度双丰收，剧集带动白鹿个人流量显著上涨</li><li>有媒体或网友统计白鹿因该剧新增代言数量，「招商能力」强悍的数据引发业内广泛讨论</li><li>话题引发网友对当红演员「流量变现效率」的横向比较，白鹿成为「剧播带货」的标杆案例</li><li>事件折射出国内娱乐营销市场中，演员的商业价值越来越与剧集爆款挂钩，品牌方追逐「剧红即签」的行业现象</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>专注分析影视剧演员商业价值的数据可视化平台。通过爬取演员在剧集播出期间的品牌代言新增数量、粉丝增长曲线、电商带货GMV变化、话题词云等多维数据，生成「剧星商业价值指数」。品牌方可通过平台快速匹配与产品调性相符的剧集演员，演员工作室可追踪自身商务价值变化，并对比同期竞争对手的商业化表现。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>品牌市场部/公关部负责人、娱乐营销从业者、演员经纪公司商务团队、关注演艺圈商业生态的媒体人，以及对「流量变现」感兴趣的营销专业学生</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>79/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
