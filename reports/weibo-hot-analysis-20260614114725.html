@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/06/14 19:47</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">9</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">1</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 39岁女子1天3杯奶茶喝出牛奶血</span>
+                <span class="score-badge">88分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「清脂侦探」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>39岁女性因每天饮用3杯奶茶导致血液中甘油三酯极度偏高，抽血时出现乳白色'牛奶血'现象</li><li>医院病例照片在社交媒体疯传，引发网友对奶茶健康风险的恐慌与讨论</li><li>营养学专家下场科普高脂血症危害，奶茶消费话题再次被置于公共健康视野</li><li>事件映射出年轻群体普遍缺乏饮食风险量化认知，健康可视化工具需求凸显</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款饮食健康追踪小程序，用户每日扫描奶茶/饮料杯拍照上传，AI自动识别品牌与规格，实时计算糖分、脂肪、热量摄入并累计风险值。当单日摄入超标时触发「血脂预警」动画，以夸张可视化方式展示血液变化，配合医学科普推送，用恐吓式趣味设计推动用户改变饮食习惯。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-40岁奶茶重度爱好者，尤其是每日饮用含糖饮料且缺乏健康意识的都市白领女性，以及关注代谢健康的中青年群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>88/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 神23乘组要在太空过端午了</span>
+                <span class="score-badge">84分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「星际节令」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>神舟二十三号乘组在轨执行任务期间迎来端午节，航天员将在太空中度过中国传统节日</li><li>官方媒体发布相关报道，航天员太空过节话题引发公众对航天员生活的好奇与情感共鸣</li><li>端午节文化与航天精神叠加，形成罕见的传统文化+科技热点双重传播效应</li><li>大众对航天员如何在失重环境中体验传统节日充满想象，科普与情感内容需求旺盛</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>中国传统节日太空主题互动平台，每逢传统节日邀请用户参与'地面节日 vs 太空节日'对比创作挑战。用户可上传节日庆祝方式并生成AI太空版本（如失重环境包粽子动画），同时实时展示航天员轨道位置与地面城市的节气时差，强化航天文化与传统文化的情感连接，支持向空间站发送节日祝福留言。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>6-14岁青少年及其家长、航天爱好者、传统文化爱好者，以及学校科普教育场景中的学生群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>84/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 T1晋级MSI</span>
+                <span class="score-badge">81分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「赛博战报厅」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>T1战队在2025年MSI国际邀请赛中成功晋级，引发全球电竞粉丝热议</li><li>Faker等核心选手状态成为讨论焦点，T1与LPL赛区战队的对决前景备受期待</li><li>MSI作为年度顶级赛事，吸引大量非核心用户围观，社交媒体上战报与梗图传播迅速</li><li>电竞内容消费碎片化，粉丝渴望在观赛过程中获得更强的参与感与社交互动体验</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>电竞赛事实时社交观战平台，支持用户在比赛进行中发布弹幕战报、预测下一局走势并押注虚拟积分。比赛结束后自动生成个人'预测准确率'战绩卡可分享至社交媒体。内置战队数据库，追踪T1、BLG等顶级战队历史MSI/Worlds数据，并提供队员能力雷达图与赛前战力对比，满足硬核与轻量玩家双类需求。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>16-30岁英雄联盟活跃玩家及电竞观众，尤其是关注国际赛事、热衷数据分析和社交讨论的男性用户群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>18/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>81/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 BLG战胜TES</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「刀塔恩怨录」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>BLG在国内赛事中击败TES，两支顶级LPL战队的对决再次引发粉丝阵营激烈争论</li><li>比赛结果在微博迅速发酵，相关话题热搜双双上榜，粉丝互怼与高光集锦同步刷屏</li><li>LPL双强格局下，战队粉丝对立情绪浓厚，对战数据与历史胜负成为粉丝论战核心武器</li><li>电竞数据消费需求持续增长，但现有平台缺乏将冷冰冰数据转化为情感叙事的产品</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>LPL战队历史对战关系图谱工具，以动态关系网络可视化展示各战队间的胜负历史、恩怨节点与关键场次。用户可点击任意两队调出'宿命对决'详情页，包含历史胜率、经典战役回放片段、选手转会流向等。同时开放用户评论区创作'战队恩怨同人剧情'，融合数据分析与粉丝创作文化，形成独特的电竞内容社区。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>18-28岁LPL电竞粉丝，尤其是对战队历史与选手生涯有深度兴趣的硬核观众，以及喜欢电竞话题讨论的社交媒体活跃用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>21/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 上海还是太超前了</span>
+                <span class="score-badge">84分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「城市超前指数」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>某上海特有的超前城市现象（如新型公共设施、科技生活场景）被网友拍摄上传，引发'上海太超前'感叹</li><li>外地网友纷纷评论'什么时候能有''我们这里再过十年才能有'，城市发展差异感引发强烈共鸣</li><li>话题折射出中国城市间基础设施与生活方式的显著代差，上海作为'未来城市'标杆形象再次被强化</li><li>用户对城市体验差异内容的旺盛分享欲与围观热情，构成内容社区与地图产品的天然需求土壤</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款城市生活前沿度测评与分享工具，用户上传日常生活场景（如无人零售、智能出行、艺术装置等）由AI判断该场景在全国的'超前等级'，并生成城市超前指数排行榜。支持用户以地图打卡形式标注城市新奇体验点，形成全国'城市前沿地图'，让外地用户可提前探索目标城市的潮流地标与未来感体验。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>22-35岁一二线城市年轻白领及文旅爱好者，尤其是热衷探索城市新业态、对生活方式有品质追求的都市新中产群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>84/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 微博电影之夜内场</span>
+                <span class="score-badge">81分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「追星雷达」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>微博电影之夜盛典举办，众多顶流明星齐聚一堂，内场动态成为粉丝疯狂追踪的核心内容</li><li>粉丝在多个平台同步搜寻偶像的出席造型、互动花絮与座位信息，信息极度碎片化</li><li>内场与外场信息不对等造成粉丝焦虑感，催生对实时聚合工具的强烈需求</li><li>大型娱乐晚会本质上已成为粉丝经济与社交媒体流量的核心战场，工具化产品空间巨大</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>明星活动实时聚合与粉丝互动平台，在颁奖典礼、晚会等大型娱乐活动期间，自动抓取多平台图文视频内容，按明星维度智能归类推送。粉丝可创建'内场观察员'角色，实时提交目击信息并获得积分，平台汇总生成'星光密度热力图'，可视化展示各明星在现场的曝光度与粉丝关注度，打造粉丝圈层的实时盛典共享体验。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>15-30岁娱乐圈追星用户，尤其是无法亲临现场但渴望实时参与感的粉丝群体，以及活跃于微博超话、抖音追星话题的女性用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>81/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 Bin MSI我依旧会夺冠</span>
+                <span class="score-badge">87分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「立flag银行」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>BLG选手Bin公开放言在MSI赛事上'依旧会夺冠'，豪气言论迅速登上热搜引发粉丝热血沸腾</li><li>网友对Bin历史上的豪言兑现记录展开考古，形成'Bin没说谎'关联话题联动传播</li><li>电竞选手的赛前宣言已成为粉丝文化的重要组成部分，具有极强的话题制造与情感动员能力</li><li>公众对运动员承诺兑现与否的持续关注，揭示出一种围绕'立flag文化'的内容消费新需求</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>电竞与体育领域的'豪言壮语'存证社交平台，用户可将运动员、选手或自己许下的公开承诺以'存单'形式上链存证，设定兑现截止日期。社区可对每条flag进行'信仰值'投票，到期后平台自动判定是否兑现并触发庆典或'还债'动画。Bin的豪言可成为首批创世存单，吸引电竞圈流量启动冷启动。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>16-30岁电竞粉丝及体育迷，尤其是热衷在社交媒体跟踪运动员立flag与兑现过程的年轻用户，以及喜欢在社区押注预测的轻度博弈爱好者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 50%"></div></div>
+                        <span>5/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>87/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 Bin没说谎</span>
+                <span class="score-badge">84分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「战神档案馆」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>Bin在MSI前夕的夺冠宣言兑现后，网友开始系统性回顾其历史预言的准确率，'Bin没说谎'话题应运而生</li><li>粉丝与路人纷纷参与考古，多条历史语录被翻出对比，形成强烈的戏剧性叙事张力</li><li>事件揭示出粉丝对电竞选手'人设一致性'的高度关注，言行一致成为粉丝忠诚度的重要情感锚点</li><li>电竞内容生态中，选手个人叙事与赛场表现的结合是最具传播力的内容形态之一</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>电竞选手历史豪言履约追踪工具，以时间轴形式展示各选手历次公开预言、承诺与赛后结果对比，计算每位选手的'兑现率'与'信口指数'。支持粉丝提交历史言论线索参与共建，并为每条被核实的预言打分。提供'选手可信度排行榜'与可分享的'XXXX说到做到'成就卡，强化粉丝对偶像的情感认同与传播动力。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>16-28岁LPL/电竞圈资深粉丝，热衷考古选手历史语录、参与社区讨论的核心用户，以及喜欢制作电竞梗图与二创内容的创作者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>84/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 微博电影之夜</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「光影预言家」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>微博电影之夜盛典作为国内重要电影颁奖活动，吸引大批影迷与娱乐用户关注各奖项走向</li><li>颁奖前夕网络上充满各种预测讨论，但缺乏结构化的预测参与渠道，用户互动相对零散</li><li>历届颁奖结果常出现争议，粉丝对评选标准的不满与讨论形成大量二次话题</li><li>颁奖季内容是稳定的年度流量洼地，围绕预测与结果讨论构建产品闭环具有持续商业价值</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>电影颁奖季预测社区，用户在典礼开始前对各奖项归属进行预测下注（使用虚拟积分），典礼直播期间同步更新开奖结果并触发积分结算与排名变动。内置AI根据票房数据、口碑走势、社交热度自动生成'机器预测'供用户参考对比。赛季结束后生成个人'影评人段位'可分享，形成电影爱好者的专属成就体系。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-40岁电影爱好者及娱乐圈关注者，尤其是对国内电影市场有持续关注的文艺青年、影迷群体，以及微博电影话题的活跃参与者</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 63.33333333333333%"></div></div>
+                        <span>19/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 小县城取消中考选拔全员直升高中</span>
+                <span class="score-badge">71分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「升学罗盘」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>某小县城宣布取消中考分流机制，所有初中生可直升高中，引发广泛关注</li><li>公众讨论焦点集中在：教育公平、职业教育分流压力减轻、高考竞争是否加剧等议题</li><li>全国多地探索中考改革，政策差异大，家长和学生急需准确的政策解读与升学指导</li><li>教育内卷背景下，县城家庭渴望获得与城市同等质量的教育规划服务</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>面向县域中学生及家长的教育规划平台，提供全国各地高中直升政策追踪、职业兴趣测评与学业路径规划功能。用户可实时查询所在地升学政策动态，并结合AI推荐适合的高中及职业方向，打破信息差，让教育资源下沉到县城家庭。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>县城及乡镇地区初中生（12-15岁）及其家长（35-50岁），尤其是教育信息获取渠道有限、对政策变化敏感的农村家庭用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 48%"></div></div>
+                        <span>12/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>71/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
