@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微博热搜产品创意分析报告</title>
+    <style>
+        :root {
+            --excellent-color: #10b981;
+            --excellent-bg: #ecfdf5;
+            --good-color: #3b82f6;
+            --good-bg: #eff6ff;
+            --normal-color: #6b7280;
+            --normal-bg: #f9fafb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-main: #f3f4f6;
+            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        /* 当在 iframe 中显示时隐藏 header */
+        body.in-iframe header { display: none; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 1rem; }
+        .report-date { font-size: 1rem; opacity: 0.9; }
+        .summary {
+            margin-top: 1rem;
+            font-size: 1.1rem;
+            background: rgba(255,255,255,0.2);
+            display: inline-block;
+            padding: 0.5rem 1.5rem;
+            border-radius: 2rem;
+        }
+        .stats-bar {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1.5rem;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: rgba(255,255,255,0.15);
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; }
+        .stat-label { font-size: 0.85rem; opacity: 0.9; }
+        main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 3rem; }
+        section h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--excellent-color);
+        }
+        .excellent-ideas h2 { border-color: var(--excellent-color); }
+        .good-ideas h2 { border-color: var(--good-color); }
+        .normal-ideas h2 { border-color: var(--normal-color); }
+        .ideas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+        .idea-card {
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: transform 0.3s ease;
+        }
+        .idea-card:hover { transform: translateY(-5px); }
+        .idea-card.excellent { border-top: 4px solid var(--excellent-color); }
+        .idea-card.good { border-top: 4px solid var(--good-color); }
+        .idea-card.normal { border-top: 4px solid var(--normal-color); }
+        .card-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hot-topic { font-size: 0.85rem; color: #ef4444; font-weight: 500; }
+        .score-badge {
+            font-weight: bold;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.9rem;
+        }
+        .excellent .score-badge { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .score-badge { background: var(--good-bg); color: var(--good-color); }
+        .normal .score-badge { background: var(--normal-bg); color: var(--normal-color); }
+        .card-body { padding: 1.5rem; }
+        .idea-name { font-size: 1.25rem; margin-bottom: 1rem; }
+        .event-timeline {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .event-timeline h4 { font-size: 0.9rem; color: #92400e; margin-bottom: 0.5rem; }
+        .event-timeline ul { margin-left: 1rem; font-size: 0.9rem; color: #78350f; }
+        .event-timeline li { margin-bottom: 0.25rem; }
+        .idea-details h4 { font-size: 0.95rem; color: var(--text-secondary); margin: 1rem 0 0.5rem 0; }
+        .idea-details p { font-size: 0.95rem; }
+        .score-breakdown {
+            margin-top: 1.5rem;
+            padding-top: 1rem;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .score-breakdown h4 { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .score-bar > span:first-child { width: 60px; color: var(--text-secondary); }
+        .score-bar > span:last-child { width: 50px; text-align: right; font-weight: 500; }
+        .bar {
+            flex: 1;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+            overflow: hidden;
+        }
+        .bar .fill { height: 100%; border-radius: 4px; }
+        .excellent .bar .fill { background: linear-gradient(90deg, var(--excellent-color), #34d399); }
+        .good .bar .fill { background: linear-gradient(90deg, var(--good-color), #60a5fa); }
+        .normal .bar .fill { background: linear-gradient(90deg, var(--normal-color), #9ca3af); }
+        .total-score {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+        }
+        .grade-label {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+        .excellent .grade-label { background: var(--excellent-bg); color: var(--excellent-color); }
+        .good .grade-label { background: var(--good-bg); color: var(--good-color); }
+        .normal .grade-label { background: var(--normal-bg); color: var(--normal-color); }
+        footer { text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.9rem; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.75rem; }
+            .ideas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🔥 微博热搜产品创意分析报告</h1>
+        <p class="report-date">生成时间: 2026/07/16 19:23</p>
+        <p class="summary">共分析 10 个热搜话题，发现 10 个产品创意</p>
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value">5</div>
+                <div class="stat-label">优秀创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">5</div>
+                <div class="stat-label">良好创意</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">0</div>
+                <div class="stat-label">其他创意</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        
+        <section class="excellent-ideas">
+            <h2>🌟 优秀创意 (≥80分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 电表里藏着中国经济的黑马</span>
+                <span class="score-badge">85分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「电脉·经济晴雨表」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>传统GDP、PMI等经济指标存在滞后性，分析人士开始寻找更实时的经济先行指标</li><li>电力消耗数据因其实时性和难以造假的特性，被经济学界视为观测经济的「温度计」</li><li>部分分析师通过用电数据提前发现了某些行业或地区的复苏信号，引发广泛关注</li><li>网友热议电表数据背后的经济逻辑，数据民主化和另类投资分析成为讨论热点</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款将全国各地用电量数据转化为经济活力可视化分析工具的应用。通过接入国家电网公开数据，实时展示各省市、各行业的用电趋势，用「电力热力图」直观呈现经济冷暖，并提供行业用电指数排行榜，帮助投资者、研究者发现被主流指标忽视的经济黑马地区和行业，内置AI解读功能将枯燥数据转化为通俗报告。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>28-50岁投资者、财经分析师、经济学爱好者、企业战略研究人员，具备一定财经知识，对另类数据投资逻辑感兴趣</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>85/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 BLG战胜T1</span>
+                <span class="score-badge">87分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「龙争虎斗·电竞情绪交易所」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>BLG（Bilibili Gaming）代表中国LPL赛区出战，迎战韩国顶级豪门T1队伍</li><li>T1拥有传奇选手Faker，历来是LPL的梦魇，此战被视为荣耀之战</li><li>BLG成功击败T1，中国电竞粉丝集体沸腾，社交媒体爆发式传播爱国情绪与赛事热情</li><li>中韩电竞对抗话题持续引爆流量，电竞民族情绪与竞技精神形成强烈话题张力</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款以电竞赛事为核心的「情绪期货」社交平台，用户用虚拟积分押注比赛结果、选手表现及特定游戏时刻（如团战、龙坑），赛中实时生成「情绪K线图」反映全体用户的紧张/亢奋/崩溃情绪曲线。赛后自动剪辑用户在关键时刻的弹幕高潮片段，生成专属的「名场面情绪回忆录」并支持社交分享。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>16-30岁英雄联盟玩家及电竞观众，以男性为主，活跃于B站、虎牙、斗鱼，有强烈的赛事参与感和社群归属需求</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>24/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>87/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 盒马因受害咪连夜改冬瓜图</span>
+                <span class="score-badge">91分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「表情侦探·品牌吉祥物风险雷达」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>「受害咪」是一种具有特定面部特征的猫咪表情包，在网络上广泛传播并带有特定语义</li><li>盒马生鲜的冬瓜商品图因面部轮廓与「受害咪」高度相似，被网友大量截图调侃</li><li>相关话题迅速登上热搜，盒马品牌方反应迅速，连夜更换了商品展示图片</li><li>此事件引发营销界对「品牌素材表情包化」风险的广泛讨论，成为品牌危机公关经典案例</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款专为品牌方提供吉祥物与营销素材「舆情风险预审」的AI工具。上传品牌图案、吉祥物或广告素材后，系统自动扫描其与当前热门表情包、网络梗、争议事件的相似度，给出「踩雷风险评分」，并生成可能被恶意解读的场景预警报告，帮助品牌方在发布前规避无意间「塌房」的风险，同时提供安全替代设计方案建议。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>品牌社媒运营人员、广告创意设计师、市场营销总监，尤其是消费品、零售、餐饮类品牌的内容团队，年龄25-40岁</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>27/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 92%"></div></div>
+                        <span>23/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>91/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 不要在空调房里做旅行规划</span>
+                <span class="score-badge">90分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「汗水规划师」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>网友分享自己在凉爽空调房中制定了密集的旅行计划，到达目的地后因高温、体力等因素全面崩溃</li><li>「特种兵旅游」等极限行程风潮引发反思，过度规划与实际体验落差成为旅行圈热门话题</li><li>大量旅行者有共同经历：纸上行程完美，实际执行惨败，引发强烈共鸣与自嘲</li><li>旅行规划工具普遍缺乏「现实校准」功能，用户需要更有温度和人性的规划辅助工具</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款能模拟真实旅行环境体感的行程规划工具，用户在制定路线时，App会根据目的地实时气候、海拔、人流密度等数据生成「体感系数」，用震动、色温变化和声效模拟目的地的炎热、寒冷、拥挤程度，让用户在规划时「感受」到真实环境，从而做出更接地气的行程安排，避免在舒适环境中制定脱离实际的「特种兵行程」。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>20-35岁旅行爱好者，尤其是有过「行程规划过于理想，实际执行崩溃」经历的城市白领和学生群体，活跃于小红书、马蜂窝</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 86.66666666666667%"></div></div>
+                        <span>26/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 96%"></div></div>
+                        <span>24/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>25/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>90/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card excellent">
+            <div class="card-header">
+                <span class="hot-topic">🔥 马龙许昕全锦赛开门红</span>
+                <span class="score-badge">80分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「乒冠传承·国球技艺传授平台」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>全国乒乓球锦标赛开赛，国乒老将马龙、许昕携手出征并首轮告捷</li><li>两位老将的精彩表现引发球迷对国乒「黄金一代」的强烈情怀共鸣</li><li>乒乓球作为国民运动，群众基础极为广泛，赛事热搜进一步激活了全民学球热情</li><li>现有乒乓球教学工具缺乏科技感与趣味性，AI动作分析赛道尚有较大空白</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款以顶级乒乓球运动员为IP核心的AI运动教学平台，用手机摄像头实时捕捉用户挥拍动作，与马龙、许昕等国乒明星的标准动作进行AI对比分析，给出精准纠错建议。平台设置「传承挑战」：完成指定技术动作后可解锁明星选手的训练秘籍短视频，形成「学习-挑战-解锁」的游戏化成长体系，并支持线上对战排名。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>10-50岁乒乓球爱好者及青少年运动员，覆盖学校乒乓球社团、社区乒乓球馆、企业乒乓球队，以及希望用运动社交破冰的职场人群</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 84%"></div></div>
+                        <span>21/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>80/100 <span class="grade-label">优秀</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+        <section class="good-ideas">
+            <h2>👍 良好创意 (60-79分)</h2>
+            <div class="ideas-grid">
+                
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 realme手机退出中国市场</span>
+                <span class="score-badge">74分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「归途·手机品牌墓志铭」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>realme作为OPPO旗下子品牌，主打性价比策略进入中国市场，但始终未能打开局面</li><li>中国手机市场竞争极度内卷，华为、小米、荣耀等品牌价格下探，挤压生存空间</li><li>realme宣布正式退出中国大陆市场，引发网友对国内手机品牌生存环境的广泛讨论</li><li>此前已有多个品牌相继退出或消亡，如金立、锤子、美图手机等，引发集体回忆</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款记录退出中国市场手机品牌历史的互动应用，用户可以为消亡或撤退的手机品牌撰写「墓志铭」、上传使用回忆、投票评选最遗憾品牌，并生成品牌兴衰时间线图谱。同时提供「遗产功能」：将老品牌手机的数据迁移路径指南，帮助用户无缝切换到新设备。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-40岁科技爱好者、数码博主、手机发烧友，有强烈的品牌情怀和怀旧心理，活跃于微博、知乎等科技讨论社区</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 73.33333333333333%"></div></div>
+                        <span>22/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 60%"></div></div>
+                        <span>6/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>74/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 突然觉得有车真的很方便</span>
+                <span class="score-badge">74分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「此刻·要车」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>网友在特殊场景（雨天、夜晚、郊区）深刻感受到没有私家车的不便，发帖引发共鸣</li><li>大量无车年轻人涌入评论区分享自己的「没车困境」，话题迅速发酵</li><li>现有打车、共享汽车方案无法完全解决特定场景下的用车痛点，用户体验割裂</li><li>有车一族也开始反思车辆闲置浪费问题，双方供需矛盾成为讨论焦点</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款基于「冲动用车场景」的即时共享汽车平台，用户在特定生活场景下（如下雨、搬家、深夜、郊游）触发用车需求时，App能在30秒内匹配最近的共享车辆或拼车用户，同时提供「有车朋友圈」功能，让有车用户在闲置时段发布顺路接送信息，将社交关系链转化为出行资源。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>22-35岁无车城市青年，居住在一二线城市，月收入5000-15000元，出行以公共交通为主但频繁遇到用车痛点</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 64%"></div></div>
+                        <span>16/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>74/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 辽宁一橡皮艇闪爆致7死1失联</span>
+                <span class="score-badge">67分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「安澜·水上活动安全守护盾」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>辽宁某地一群人乘坐橡皮艇进行水上活动，橡皮艇突发闪爆（瞬间破裂）</li><li>事故造成7人死亡、1人失联的严重伤亡，事件迅速引发全国关注</li><li>调查显示橡皮艇质量、超载或操作不当是主要安全隐患，公众安全意识薄弱</li><li>水上休闲活动快速普及但安全监管和公众安全意识严重滞后，亟需系统性解决方案</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款专为水上休闲活动设计的安全预警应用，整合气象数据、水域风险图谱、设备安全检查清单及紧急求救系统。用户出发前完成设备安全自检打卡（橡皮艇气压、救生衣穿戴等），系统实时推送水域风险预警，一旦发生意外可一键触发离线SOS信号，并自动向紧急联系人和附近救援站推送GPS位置，内置专业急救指导视频。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-55岁水上运动爱好者、户外探险团体组织者、景区管理方，尤其是经常参与漂流、皮划艇、橡皮艇等高风险水上活动的用户</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 66.66666666666666%"></div></div>
+                        <span>20/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 72%"></div></div>
+                        <span>18/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 40%"></div></div>
+                        <span>10/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 90%"></div></div>
+                        <span>9/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>67/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 C罗原计划世界杯后完婚</span>
+                <span class="score-badge">78分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「星球婚约·足球主题婚礼定制平台」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>C罗与女友乔治娜感情稳定多年，育有多个孩子，外界长期关注其婚期</li><li>消息称C罗原计划在2022年卡塔尔世界杯结束后举办婚礼，却因各种原因未能成行</li><li>此消息再度引发全球球迷对C罗私生活的关注，婚礼话题与足球话题罕见融合</li><li>体育明星婚礼向来是全球顶流话题，C罗的粉丝基础使任何相关产品都具备天然流量</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>一款为足球迷情侣提供赛事主题婚礼全流程定制服务的平台，用户可选择心仪球员、球队或经典比赛作为婚礼主题，平台提供从主题布置、邀请函设计、专属「进球音效」入场仪式到「世界波」蛋糕定制的一站式服务。特色功能「球迷婚礼档案」可生成以两人支持球队战绩为线索的爱情故事，并制作专属纪念视频。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>25-40岁足球迷情侣，尤其是双方均为球迷或一方希望将对方融入自己足球热情的新婚人群，覆盖全球C罗、梅西等巨星粉丝群体</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>21/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>20/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 88%"></div></div>
+                        <span>22/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 70%"></div></div>
+                        <span>7/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>78/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+        <article class="idea-card good">
+            <div class="card-header">
+                <span class="hot-topic">🔥 中国夫妇印尼溺亡水下画面曝光</span>
+                <span class="score-badge">72分</span>
+            </div>
+            <div class="card-body">
+                <h3 class="idea-name">「深潜守护者·境外水上活动安全伴侣」</h3>
+
+                <div class="event-timeline">
+                    <h4>📰 事件脉络</h4>
+                    <ul>
+                        <li>一对中国夫妇在印度尼西亚海域参与水下活动时不幸溺亡，事件引发广泛关注</li><li>水下监控画面被曝光，清晰呈现事故经过，引发公众对境外水上活动安全的强烈讨论</li><li>事件暴露出境外旅游中语言障碍、救援滞后、缺乏实时监控等多重安全漏洞</li><li>中国出境游快速复苏，海岛潜水类活动需求旺盛，但安全保障体系严重缺失</li>
+                    </ul>
+                </div>
+
+                <div class="idea-details">
+                    <h4>💡 核心功能</h4>
+                    <p>专为境外旅游水上活动设计的安全管理应用，出发前自动同步目的地海域实时风险评级、当地救援响应时间及可信任潜水机构认证名单。活动中通过防水智能手环实时上传深度、心率及位置数据，设置「水下心跳线」：超过预设深度或心率异常时自动触发水面伴侣报警。同时内置多语言紧急求救模板，一键联系中国驻当地使馆求援通道。</p>
+
+                    <h4>👥 目标用户</h4>
+                    <p>28-50岁有境外旅游经验的中产家庭，尤其是热爱东南亚海岛旅游的潜水爱好者夫妻、家庭群体，对出行安全有较高重视度</p>
+                </div>
+
+                <div class="score-breakdown">
+                    <h4>📊 评分详情</h4>
+                    <div class="score-bar">
+                        <span>创新性</span>
+                        <div class="bar"><div class="fill" style="width: 76.66666666666667%"></div></div>
+                        <span>23/30</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>话题性</span>
+                        <div class="bar"><div class="fill" style="width: 76%"></div></div>
+                        <span>19/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>趣味性</span>
+                        <div class="bar"><div class="fill" style="width: 48%"></div></div>
+                        <span>12/25</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>实用性</span>
+                        <div class="bar"><div class="fill" style="width: 100%"></div></div>
+                        <span>10/10</span>
+                    </div>
+                    <div class="score-bar">
+                        <span>可行性</span>
+                        <div class="bar"><div class="fill" style="width: 80%"></div></div>
+                        <span>8/10</span>
+                    </div>
+                    <div class="total-score">
+                        <span>综合评分</span>
+                        <span>72/100 <span class="grade-label">良好</span></span>
+                    </div>
+                </div>
+            </div>
+        </article>
+            </div>
+        </section>
+        
+
+        
+    </main>
+
+    <footer>
+        <p>由 Claude (claude-sonnet-4-5-20250929) + GitHub Actions 自动生成</p>
+        <p>数据来源: 微博热搜榜单 (天行数据API)</p>
+    </footer>
+    <script>
+        // 检测是否在 iframe 中，如果是则隐藏 header
+        if (window.self !== window.top) {
+            document.body.classList.add('in-iframe');
+        }
+    </script>
+</body>
+</html>
